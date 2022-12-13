@@ -1,0 +1,14 @@
+{
+  "name": "Postgres Monitor Agent",
+  "description": "PostgreSQL database monitoring agent for postgresmonitor.com",
+  "website": "https://postgresmonitor.com",
+  "repository": "https://github.com/postgresmonitor/agent",
+  "logo": "https://postgresmonitor.com/favicon.png",
+  "keywords": ["postgres", "postgresql", "pg", "database", "sql", "monitoring", "dashboard", "agent"],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "hobby"
+    }
+  }
+}
