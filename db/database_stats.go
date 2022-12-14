@@ -1,9 +1,9 @@
 package db
 
 import (
+	"agent/logger"
+	"agent/util"
 	"database/sql"
-	"postgres-monitor/logger"
-	"postgres-monitor/util"
 	"sync"
 	"time"
 )

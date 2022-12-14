@@ -1,11 +1,11 @@
 package main
 
 import (
+	"agent/agent"
+	"agent/config"
+	"agent/logger"
 	"flag"
 	"os"
-	"postgres-monitor/agent"
-	"postgres-monitor/config"
-	"postgres-monitor/logger"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"

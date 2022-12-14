@@ -1,4 +1,4 @@
-module postgres-monitor
+module agent
 
 go 1.18
 

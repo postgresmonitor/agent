@@ -1,16 +1,16 @@
 package agent
 
 import (
+	"agent/api"
+	"agent/config"
+	"agent/data"
+	"agent/db"
+	"agent/logger"
+	"agent/logs"
+	"agent/schedule"
+	"agent/util"
 	"math/rand"
 	"net/http"
-	"postgres-monitor/api"
-	"postgres-monitor/config"
-	"postgres-monitor/data"
-	"postgres-monitor/db"
-	"postgres-monitor/logger"
-	"postgres-monitor/logs"
-	"postgres-monitor/schedule"
-	"postgres-monitor/util"
 	"time"
 
 	"github.com/gammazero/deque"

@@ -1,7 +1,7 @@
 package util
 
 import (
-	"postgres-monitor/logger"
+	"agent/logger"
 
 	"github.com/hashicorp/go-version"
 )

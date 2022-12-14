@@ -1,8 +1,8 @@
 package db
 
 import (
+	"agent/config"
 	"os"
-	"postgres-monitor/config"
 	"sync"
 	"testing"
 

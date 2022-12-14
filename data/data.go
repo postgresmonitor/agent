@@ -1,7 +1,7 @@
 package data
 
 import (
-	"postgres-monitor/db"
+	"agent/db"
 	"reflect"
 	"sync"
 )

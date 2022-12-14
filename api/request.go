@@ -1,14 +1,14 @@
 package api
 
 import (
+	"agent/config"
+	"agent/data"
+	"agent/db"
+	"agent/util"
 	"bytes"
 	"compress/gzip"
 	"database/sql"
 	"encoding/json"
-	"postgres-monitor/config"
-	"postgres-monitor/data"
-	"postgres-monitor/db"
-	"postgres-monitor/util"
 )
 
 //

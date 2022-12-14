@@ -1,10 +1,10 @@
 package db
 
 import (
+	"agent/logger"
+	"agent/util"
 	"database/sql"
 	"log"
-	"postgres-monitor/logger"
-	"postgres-monitor/util"
 )
 
 // stateful stats object that stores all database schema per server id

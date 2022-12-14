@@ -1,6 +1,6 @@
 package db
 
-import "postgres-monitor/logger"
+import "agent/logger"
 
 type SlowQuery struct {
 	SqlErrorCode     string

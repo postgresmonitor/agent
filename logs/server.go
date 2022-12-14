@@ -1,12 +1,12 @@
 package logs
 
 import (
+	"agent/config"
+	"agent/data"
+	"agent/db"
+	"agent/logger"
 	"io"
 	"net/http"
-	"postgres-monitor/config"
-	"postgres-monitor/data"
-	"postgres-monitor/db"
-	"postgres-monitor/logger"
 
 	"github.com/gin-gonic/gin"
 )

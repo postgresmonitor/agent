@@ -1,12 +1,12 @@
 package db
 
 import (
+	"agent/config"
+	"agent/logger"
 	"database/sql"
 	"log"
 	nurl "net/url"
 	"os"
-	"postgres-monitor/config"
-	"postgres-monitor/logger"
 	"strings"
 	"sync"
 

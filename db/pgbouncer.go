@@ -1,10 +1,10 @@
 package db
 
 import (
+	"agent/logger"
+	"agent/util"
 	"database/sql"
 	"fmt"
-	"postgres-monitor/logger"
-	"postgres-monitor/util"
 	"strings"
 	"sync"
 	"time"

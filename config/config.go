@@ -1,8 +1,8 @@
 package config
 
 import (
+	"agent/logger"
 	"os"
-	"postgres-monitor/logger"
 	"strconv"
 	"time"
 

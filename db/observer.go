@@ -1,9 +1,9 @@
 package db
 
 import (
-	"postgres-monitor/config"
-	"postgres-monitor/logger"
-	"postgres-monitor/schedule"
+	"agent/config"
+	"agent/logger"
+	"agent/schedule"
 )
 
 type Observer struct {

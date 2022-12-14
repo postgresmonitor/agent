@@ -1,7 +1,7 @@
 package db
 
 import (
-	"postgres-monitor/logger"
+	"agent/logger"
 	"time"
 )
 

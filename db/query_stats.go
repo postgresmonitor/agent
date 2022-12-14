@@ -1,9 +1,9 @@
 package db
 
 import (
+	"agent/util"
 	"database/sql"
 	"math"
-	"postgres-monitor/util"
 	"regexp"
 	"sort"
 	"time"

@@ -1,8 +1,8 @@
 package data
 
 import (
+	"agent/db"
 	"database/sql"
-	"postgres-monitor/db"
 	"reflect"
 	"testing"
 	"time"
