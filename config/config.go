@@ -48,7 +48,7 @@ func New() Config {
 		os.Exit(1)
 	}
 
-	endpoint := getEnvVar("POSTGRES_MONITOR_API_URL", "https://api.postgresmonitor.com/agent/v1/report")
+	endpoint := getEnvVar("POSTGRES_MONITOR_API_URL", "https://agent.postgresmonitor.com/agent/v1/report")
 	environment := getEnvVar("AGENT_ENV", "production")
 	port := getEnvVar("PORT", "8080")
 
