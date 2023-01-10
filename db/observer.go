@@ -10,9 +10,9 @@ type Observer struct {
 	config              config.Config
 	serverChannel       chan *PostgresServer
 	schemaChannel       chan *Database
-	settingsChannel     chan *Setting
-	metricsChannel      chan *Metric
-	queryStatsChannel   chan *QueryStats
+	settingsChannel     chan []*Setting
+	metricsChannel      chan []*Metric
+	queryStatsChannel   chan []*QueryStats
 	replicationChannel  chan *Replication
 	rawSlowQueryChannel chan *SlowQuery
 
@@ -50,7 +50,7 @@ type PostgresServer struct {
 }
 
 // Creates a new DB observer using the present config env vars
-func NewObserver(config config.Config, serverChannel chan *PostgresServer, schemaChannel chan *Database, replicationChannel chan *Replication, metricsChannel chan *Metric, queryStatsChannel chan *QueryStats, settingsChannel chan *Setting, rawSlowQueryChannel chan *SlowQuery) *Observer {
+func NewObserver(config config.Config, serverChannel chan *PostgresServer, schemaChannel chan *Database, replicationChannel chan *Replication, metricsChannel chan []*Metric, queryStatsChannel chan []*QueryStats, settingsChannel chan []*Setting, rawSlowQueryChannel chan *SlowQuery) *Observer {
 	postgresClients := BuildPostgresClients(config)
 
 	if len(postgresClients) == 0 {

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/logger"
 	"database/sql"
 	"time"
 )
@@ -26,7 +27,7 @@ type Setting struct {
 }
 
 type SettingsMonitor struct {
-	settingsChannel chan *Setting
+	settingsChannel chan []*Setting
 }
 
 func (o *Observer) MonitorSettings() {
@@ -44,8 +45,11 @@ func (o *Observer) MonitorSettings() {
 func (m *SettingsMonitor) Run(postgresClient *PostgresClient) {
 	settings := m.FindSettings(postgresClient)
 
-	for _, setting := range settings {
-		m.settingsChannel <- setting
+	select {
+	case m.settingsChannel <- settings:
+		// sent
+	default:
+		logger.Warn("Dropping settings: channel buffer full")
 	}
 }
 

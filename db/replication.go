@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/logger"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -49,7 +50,7 @@ type ReplicaClient struct {
 
 type ReplicationMonitor struct {
 	replicationChannel chan *Replication
-	metricsChannel     chan *Metric
+	metricsChannel     chan []*Metric
 	postgresClients    []*PostgresClient
 }
 
@@ -63,22 +64,29 @@ func (m *ReplicationMonitor) Run(postgresClient *PostgresClient) {
 		Replicas: replicas,
 	}
 
-	m.replicationChannel <- replication
+	select {
+	case m.replicationChannel <- replication:
+		// sent
+	default:
+		logger.Warn("Dropping replication: channel buffer full")
+	}
 
 	m.ReportReplicationLagMetrics(postgresClient.serverID, replica, replicas)
 }
 
 func (m *ReplicationMonitor) ReportReplicationLagMetrics(serverID *ServerID, replica *Replica, replicaClients []*ReplicaClient) {
+	var replicationMetrics []*Metric
+
 	// send lag metrics
 	if replica != nil && isPgtypePresent(replica.Lag.Status) {
 		// sent if server is a replica
-		m.metricsChannel <- NewMetric(
+		replicationMetrics = append(replicationMetrics, NewMetric(
 			"replication.standby.lag.local.ms",
 			microToMilliseconds(replica.Lag.Microseconds),
 			"replica/standby/"+replica.ApplicationName,
 			*serverID,
 			replica.MeasuredAt,
-		)
+		))
 	}
 
 	// sent for all replicas of current server
@@ -91,57 +99,66 @@ func (m *ReplicationMonitor) ReportReplicationLagMetrics(serverID *ServerID, rep
 
 		// ms lag
 		if isPgtypePresent(replicaClient.WriteLag.Status) {
-			m.metricsChannel <- NewMetric(
+			replicationMetrics = append(replicationMetrics, NewMetric(
 				"replication.standby.lag.write.ms",
 				microToMilliseconds(replicaClient.WriteLag.Microseconds),
 				entity,
 				*serverID,
 				replicaClient.MeasuredAt,
-			)
+			))
 		}
 		if isPgtypePresent(replicaClient.FlushLag.Status) {
-			m.metricsChannel <- NewMetric(
+			replicationMetrics = append(replicationMetrics, NewMetric(
 				"replication.standby.lag.flush.ms",
 				microToMilliseconds(replicaClient.FlushLag.Microseconds),
 				entity,
 				*serverID,
 				replicaClient.MeasuredAt,
-			)
+			))
 		}
 		if isPgtypePresent(replicaClient.ReplayLag.Status) {
-			m.metricsChannel <- NewMetric(
+			replicationMetrics = append(replicationMetrics, NewMetric(
 				"replication.standby.lag.replay.ms",
 				microToMilliseconds(replicaClient.ReplayLag.Microseconds),
 				entity,
 				*serverID,
 				replicaClient.MeasuredAt,
-			)
+			))
 		}
 
 		// bytes lag
-		m.metricsChannel <- NewMetric(
+		replicationMetrics = append(replicationMetrics, NewMetric(
 			"replication.standby.lag.write.bytes",
 			replicaClient.WriteLagBytes,
 			entity,
 			*serverID,
 			replicaClient.MeasuredAt,
-		)
-		m.metricsChannel <- NewMetric(
+		))
+		replicationMetrics = append(replicationMetrics, NewMetric(
 			"replication.standby.lag.flush.bytes",
 			replicaClient.FlushLagBytes,
 			entity,
 			*serverID,
 			replicaClient.MeasuredAt,
-		)
-		m.metricsChannel <- NewMetric(
+		))
+		replicationMetrics = append(replicationMetrics, NewMetric(
 			"replication.standby.lag.replay.bytes",
 			replicaClient.ReplayLagBytes,
 			entity,
 			*serverID,
 			replicaClient.MeasuredAt,
-		)
-
+		))
 	}
+
+	if len(replicationMetrics) > 0 {
+		select {
+		case m.metricsChannel <- replicationMetrics:
+			// sent
+		default:
+			logger.Warn("Dropping replication metrics: channel buffer full")
+		}
+	}
+
 }
 
 //

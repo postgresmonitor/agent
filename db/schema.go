@@ -303,7 +303,12 @@ func (m *SchemaMonitor) Run(postgresClient *PostgresClient) {
 	// only report the database schemas if we've had two poll intervals
 	// since the first iteration won't have the correct deltas
 	if previousDatabase != nil {
-		m.schemaChannel <- deltaDatabase
+		select {
+		case m.schemaChannel <- deltaDatabase:
+			// sent
+		default:
+			logger.Warn("Dropping schema database: channel buffer full")
+		}
 	}
 }
 

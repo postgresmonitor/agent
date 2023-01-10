@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/logger"
 	"agent/util"
 	"database/sql"
 	"math"
@@ -129,7 +130,7 @@ func (s *QueryStats) Valid() bool {
 type QueryStatsMonitor struct {
 	// stateful stats for the life of the process
 	queryStatsState     *QueryStatsState
-	queryStatsChannel   chan *QueryStats
+	queryStatsChannel   chan []*QueryStats
 	obfuscator          *Obfuscator
 	monitorAgentQueries bool
 }
@@ -183,8 +184,11 @@ func (m *QueryStatsMonitor) Run(postgresClient *PostgresClient) {
 	filtered := m.FilterStats(aggregated)
 
 	// report aggregated stats to channel
-	for _, stats := range filtered {
-		m.queryStatsChannel <- stats
+	select {
+	case m.queryStatsChannel <- filtered:
+		// sent
+	default:
+		logger.Warn("Dropping query stats: channel buffer full")
 	}
 }
 

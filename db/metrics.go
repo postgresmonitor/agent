@@ -24,7 +24,7 @@ func NewMetric(name string, value float64, entity string, serverID ServerID, mea
 }
 
 type MetricMonitor struct {
-	metricsChannel     chan *Metric
+	metricsChannel     chan []*Metric
 	databaseStatsState *DatabaseStatsState
 }
 
@@ -33,8 +33,11 @@ func (m *MetricMonitor) Run(postgresClient *PostgresClient) {
 	metrics = append(metrics, m.FindDatabaseStatMetrics(postgresClient)...)
 	metrics = append(metrics, m.FindDatabaseCacheHitMetrics(postgresClient)...)
 
-	for _, metric := range metrics {
-		m.metricsChannel <- metric
+	select {
+	case m.metricsChannel <- metrics:
+		// sent
+	default:
+		logger.Warn("Dropping metrics: channel buffer full")
 	}
 }
 

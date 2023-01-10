@@ -76,7 +76,7 @@ func (s *Server) processLogLine(line string) {
 	}
 
 	if shouldHandleTestLogLine(line) {
-		s.logTestChannel <- line
+		s.handleLogTest(line)
 	}
 }
 
@@ -92,11 +92,30 @@ func (s *Server) handleLogLine(line string) {
 
 	for _, parsed := range parsedLines {
 		if len(parsed.Metrics) > 0 {
-			s.logMetricChannel <- parsed.Metrics
+			select {
+			case s.logMetricChannel <- parsed.Metrics:
+				// sent
+			default:
+				logger.Warn("Dropping log metrics: channel buffer full")
+			}
 		}
 
 		if parsed.SlowQuery != nil {
-			s.rawSlowQueryChannel <- parsed.SlowQuery
+			select {
+			case s.rawSlowQueryChannel <- parsed.SlowQuery:
+				// sent
+			default:
+				logger.Warn("Dropping slow query: channel buffer full")
+			}
 		}
+	}
+}
+
+func (s *Server) handleLogTest(line string) {
+	select {
+	case s.logTestChannel <- line:
+		// sent
+	default:
+		logger.Warn("Dropping log test line: channel buffer full")
 	}
 }

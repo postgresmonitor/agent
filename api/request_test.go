@@ -94,58 +94,68 @@ func TestNewReportRequest(t *testing.T) {
 			},
 		},
 	})
-	data.AddMetric(&db.Metric{
-		Name:       "connections.used",
-		Value:      33,
-		Entity:     "",
-		ServerID:   *serverId,
-		MeasuredAt: 123456789,
+	data.AddMetrics([]*db.Metric{
+		{
+			Name:       "connections.used",
+			Value:      33,
+			Entity:     "",
+			ServerID:   *serverId,
+			MeasuredAt: 123456789,
+		},
 	})
-	data.AddMetric(&db.Metric{
-		Name:       "connections.max",
-		Value:      500,
-		Entity:     "",
-		ServerID:   *serverId,
-		MeasuredAt: 123456789,
+	data.AddMetrics([]*db.Metric{
+		{
+			Name:       "connections.max",
+			Value:      500,
+			Entity:     "",
+			ServerID:   *serverId,
+			MeasuredAt: 123456789,
+		},
 	})
-	data.AddMetric(&db.Metric{
-		Name:       "connections.used",
-		Value:      35,
-		Entity:     "",
-		ServerID:   *serverId,
-		MeasuredAt: 123456799,
+	data.AddMetrics([]*db.Metric{
+		{
+			Name:       "connections.used",
+			Value:      35,
+			Entity:     "",
+			ServerID:   *serverId,
+			MeasuredAt: 123456799,
+		},
 	})
-	data.AddMetric(&db.Metric{
-		Name:       "connections.max",
-		Value:      500,
-		Entity:     "",
-		ServerID:   *serverId,
-		MeasuredAt: 123456799,
+	data.AddMetrics([]*db.Metric{
+		{
+			Name:       "connections.max",
+			Value:      500,
+			Entity:     "",
+			ServerID:   *serverId,
+			MeasuredAt: 123456799,
+		},
 	})
-	data.AddQueryStats(&db.QueryStats{
-		ServerID:            serverId,
-		QueryId:             1855550508,
-		Query:               "UPDATE \"stats\" SET \"value\" = $1, \"updated_at\" = $2 WHERE \"stats\".\"id\" = $3",
-		Comment:             "/*app:worker-1*/",
-		Explain:             "explain-foo",
-		Calls:               10,
-		TotalTime:           3.5,
-		MinTime:             0.01231,
-		MaxTime:             4.895439,
-		MeanTime:            0.35,
-		Rows:                10,
-		SharedBlocksHit:     3,
-		SharedBlocksRead:    0,
-		SharedBlocksDirtied: 1,
-		SharedBlocksWritten: 0,
-		LocalBlocksHit:      0,
-		LocalBlocksRead:     0,
-		LocalBlocksDirtied:  0,
-		LocalBlocksWritten:  0,
-		TempBlocksRead:      0,
-		TempBlocksWritten:   0,
-		BlockReadTime:       3.948159,
-		BlockWriteTime:      10,
+	data.AddQueryStats([]*db.QueryStats{
+		{
+			ServerID:            serverId,
+			QueryId:             1855550508,
+			Query:               "UPDATE \"stats\" SET \"value\" = $1, \"updated_at\" = $2 WHERE \"stats\".\"id\" = $3",
+			Comment:             "/*app:worker-1*/",
+			Explain:             "explain-foo",
+			Calls:               10,
+			TotalTime:           3.5,
+			MinTime:             0.01231,
+			MaxTime:             4.895439,
+			MeanTime:            0.35,
+			Rows:                10,
+			SharedBlocksHit:     3,
+			SharedBlocksRead:    0,
+			SharedBlocksDirtied: 1,
+			SharedBlocksWritten: 0,
+			LocalBlocksHit:      0,
+			LocalBlocksRead:     0,
+			LocalBlocksDirtied:  0,
+			LocalBlocksWritten:  0,
+			TempBlocksRead:      0,
+			TempBlocksWritten:   0,
+			BlockReadTime:       3.948159,
+			BlockWriteTime:      10,
+		},
 	})
 
 	request := NewReportRequest(config, data, 1649303496)

@@ -56,7 +56,7 @@ func (s *PgBouncerStats) Delta(latest *PgBouncerStats) *PgBouncerStats {
 
 type PgBouncerMonitor struct {
 	pgBouncerStatsState *PgBouncerStatsState
-	metricsChannel      chan *Metric
+	metricsChannel      chan []*Metric
 }
 
 func (m *PgBouncerMonitor) Run(postgresClient *PostgresClient) {
@@ -67,8 +67,11 @@ func (m *PgBouncerMonitor) Run(postgresClient *PostgresClient) {
 	if *postgresClient.pgBouncerEnabled {
 		metrics := m.GetMetrics(postgresClient)
 
-		for _, metric := range metrics {
-			m.metricsChannel <- metric
+		select {
+		case m.metricsChannel <- metrics:
+			// sent
+		default:
+			logger.Warn("Dropping metrics: channel buffer full")
 		}
 	}
 }

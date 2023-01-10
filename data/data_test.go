@@ -291,12 +291,14 @@ func TestCopyAndReset(t *testing.T) {
 			},
 		},
 	})
-	data.AddMetric(&db.Metric{
-		Name:       "metric",
-		Value:      10,
-		Entity:     "table/foo",
-		ServerID:   *serverId,
-		MeasuredAt: 123456789,
+	data.AddMetrics([]*db.Metric{
+		{
+			Name:       "metric",
+			Value:      10,
+			Entity:     "table/foo",
+			ServerID:   *serverId,
+			MeasuredAt: 123456789,
+		},
 	})
 	data.AddSetting(&db.Setting{
 		Name:  "foo_setting",

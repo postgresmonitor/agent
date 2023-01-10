@@ -72,7 +72,12 @@ func (o *Observer) MonitorSlowQueries() {
 				MaxTime:     slowQuery.DurationMs,
 				MeasuredAt:  slowQuery.MeasuredAt,
 			}
-			o.queryStatsChannel <- slowQueryStats
+			select {
+			case o.queryStatsChannel <- []*QueryStats{slowQueryStats}:
+				// sent
+			default:
+				logger.Warn("Dropping query stats: channel buffer full")
+			}
 		}
 	}
 }

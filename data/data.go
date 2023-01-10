@@ -35,12 +35,14 @@ func (d *Data) AddLogMetrics(newLogMetrics map[string]string) {
 	d.LogMetrics = append(d.LogMetrics, newLogMetrics)
 }
 
-func (d *Data) AddMetric(metric *db.Metric) {
+func (d *Data) AddMetrics(metrics []*db.Metric) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	// just append new metric records - we'll aggregate them in request
-	d.Metrics = append(d.Metrics, *metric)
+	for _, metric := range metrics {
+		d.Metrics = append(d.Metrics, *metric)
+	}
 }
 
 func (d *Data) AddPostgresServer(newServer *db.PostgresServer) {
@@ -123,6 +125,12 @@ func (d *Data) AddReplication(replication *db.Replication) {
 	}
 }
 
+func (d *Data) AddSettings(settings []*db.Setting) {
+	for _, setting := range settings {
+		d.AddSetting(setting)
+	}
+}
+
 func (d *Data) AddSetting(setting *db.Setting) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -146,12 +154,14 @@ func (d *Data) AddSetting(setting *db.Setting) {
 	}
 }
 
-func (d *Data) AddQueryStats(stats *db.QueryStats) {
+func (d *Data) AddQueryStats(stats []*db.QueryStats) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	// append stats
-	d.QueryStats = append(d.QueryStats, *stats)
+	for _, stat := range stats {
+		d.QueryStats = append(d.QueryStats, *stat)
+	}
 }
 
 func (d *Data) CopyAndReset() *Data {

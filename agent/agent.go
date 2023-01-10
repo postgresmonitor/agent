@@ -27,9 +27,9 @@ type Agent struct {
 	serverChannel       chan *db.PostgresServer
 	databaseChannel     chan *db.Database
 	replicationChannel  chan *db.Replication
-	metricsChannel      chan *db.Metric
-	queryStatsChannel   chan *db.QueryStats
-	settingsChannel     chan *db.Setting
+	metricsChannel      chan []*db.Metric
+	queryStatsChannel   chan []*db.QueryStats
+	settingsChannel     chan []*db.Setting
 	rawSlowQueryChannel chan *db.SlowQuery
 }
 
@@ -38,15 +38,15 @@ func New(config config.Config) *Agent {
 		config:              config,
 		data:                &data.Data{},
 		requests:            deque.New[*api.ReportRequest](maxBufferedRequests, maxBufferedRequests),
-		logMetricChannel:    make(chan data.LogMetrics),
-		logTestChannel:      make(chan string),
-		serverChannel:       make(chan *db.PostgresServer),
-		databaseChannel:     make(chan *db.Database),
-		replicationChannel:  make(chan *db.Replication),
-		metricsChannel:      make(chan *db.Metric),
-		queryStatsChannel:   make(chan *db.QueryStats),
-		settingsChannel:     make(chan *db.Setting),
-		rawSlowQueryChannel: make(chan *db.SlowQuery),
+		logMetricChannel:    make(chan data.LogMetrics, 50),
+		logTestChannel:      make(chan string, 10),
+		serverChannel:       make(chan *db.PostgresServer, 25),
+		databaseChannel:     make(chan *db.Database, 25),
+		replicationChannel:  make(chan *db.Replication, 25),
+		metricsChannel:      make(chan []*db.Metric, 25),
+		queryStatsChannel:   make(chan []*db.QueryStats, 25),
+		settingsChannel:     make(chan []*db.Setting, 25),
+		rawSlowQueryChannel: make(chan *db.SlowQuery, 100),
 	}
 }
 
@@ -109,6 +109,9 @@ func (a *Agent) newObserver() *db.Observer {
 
 // runs forever
 func (a *Agent) updateDataChannels() {
+	// TODO: consider using separate select {} blocks per channel to ensure
+	// that processing of all channels happens equally in situations where
+	// one channel is overwhelmingly more busy than the others
 	for {
 		select {
 		case logMetrics := <-a.logMetricChannel:
@@ -125,10 +128,10 @@ func (a *Agent) updateDataChannels() {
 			a.data.AddDatabase(database)
 		case replication := <-a.replicationChannel:
 			a.data.AddReplication(replication)
-		case metric := <-a.metricsChannel:
-			a.data.AddMetric(metric)
-		case setting := <-a.settingsChannel:
-			a.data.AddSetting(setting)
+		case metrics := <-a.metricsChannel:
+			a.data.AddMetrics(metrics)
+		case settings := <-a.settingsChannel:
+			a.data.AddSettings(settings)
 		case stats := <-a.queryStatsChannel:
 			a.data.AddQueryStats(stats)
 		}

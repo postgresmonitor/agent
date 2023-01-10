@@ -41,7 +41,12 @@ func (m *MetadataMonitor) Run(postgresClient *PostgresClient) {
 		}
 	}
 
-	m.serverChannel <- server
+	select {
+	case m.serverChannel <- server:
+		// sent
+	default:
+		logger.Warn("Dropping server: channel buffer full")
+	}
 }
 
 func (m *MetadataMonitor) FindMaxConnections(postgresClient *PostgresClient) int64 {
