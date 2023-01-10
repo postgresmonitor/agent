@@ -160,11 +160,11 @@ func TestNewReportRequest(t *testing.T) {
 
 	request := NewReportRequest(config, data, 1649303496)
 
-	assert.Equal(t, "1.0.0", request.Client.Version)
+	assert.Equal(t, "1.0.0", request.Agent.Version)
 
 	json, _ := json.Marshal(request)
 
-	assert.Equal(t, "{\"log_metrics\":[{\"addon\":\"postgresql-contoured-12345\",\"avg_query\":\"8751\",\"avg_recv\":\"37568\",\"avg_sent\":\"1339005\",\"client_active\":\"56\",\"client_waiting\":\"0\",\"max_wait\":\"0\",\"server_active\":\"0\",\"server_idle\":\"16\",\"source\":\"pgbouncer\",\"timestamp\":\"1648166379\"}],\"servers\":[{\"config_name\":\"GREEN\",\"config_var_name\":\"GREEN_URL\",\"databases\":[{\"name\":\"testDb\",\"schemas\":[{\"name\":\"public\",\"tables\":[{\"name\":\"test\",\"total_bytes\":10234,\"index_bytes\":5000,\"toast_bytes\":1000,\"table_bytes\":4234,\"bloat_bytes\":50,\"bloat_factor\":0.2,\"live_row_estimate\":3001}]}]}],\"replica\":{\"application_name\":\"follower:651387237\",\"primary_config_name\":\"GREEN\",\"status\":\"sync\"},\"replicas\":[{\"application_name\":\"follower:651387237\",\"backend_start\":1668717298,\"backend_xmin\":123456789,\"state\":\"streaming\",\"sync_priority\":1,\"sync_state\":\"sync\"}],\"metrics\":[{\"name\":\"connections.used\",\"values\":[{\"value\":33,\"measured_at\":123456789},{\"value\":35,\"measured_at\":123456799}]},{\"name\":\"connections.max\",\"values\":[{\"value\":500,\"measured_at\":123456789},{\"value\":500,\"measured_at\":123456799}]}],\"queries\":{\"stats\":[{\"database\":\"testDb\",\"query_id\":1855550508,\"query\":\"UPDATE \\\"stats\\\" SET \\\"value\\\" = $1, \\\"updated_at\\\" = $2 WHERE \\\"stats\\\".\\\"id\\\" = $3\",\"comment\":\"/*app:worker-1*/\",\"explain\":\"explain-foo\",\"calls\":10,\"time\":3.5,\"mean_time\":0.35,\"min_time\":0.02,\"max_time\":4.9,\"rows\":10,\"shared_blocks_hit\":3,\"shared_blocks_dirtied\":1,\"block_read_time\":3.95,\"block_write_time\":10}]},\"version\":\"10.19 (Ubuntu 10.19-2.pgdg20.04+1)\",\"monitored_at\":1649299369}],\"reported_at\":1649303496,\"client\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
+	assert.Equal(t, "{\"log_metrics\":[{\"addon\":\"postgresql-contoured-12345\",\"avg_query\":\"8751\",\"avg_recv\":\"37568\",\"avg_sent\":\"1339005\",\"client_active\":\"56\",\"client_waiting\":\"0\",\"max_wait\":\"0\",\"server_active\":\"0\",\"server_idle\":\"16\",\"source\":\"pgbouncer\",\"timestamp\":\"1648166379\"}],\"servers\":[{\"config_name\":\"GREEN\",\"config_var_name\":\"GREEN_URL\",\"databases\":[{\"name\":\"testDb\",\"schemas\":[{\"name\":\"public\",\"tables\":[{\"name\":\"test\",\"total_bytes\":10234,\"index_bytes\":5000,\"toast_bytes\":1000,\"table_bytes\":4234,\"bloat_bytes\":50,\"bloat_factor\":0.2,\"live_row_estimate\":3001}]}]}],\"replica\":{\"application_name\":\"follower:651387237\",\"primary_config_name\":\"GREEN\",\"status\":\"sync\"},\"replicas\":[{\"application_name\":\"follower:651387237\",\"backend_start\":1668717298,\"backend_xmin\":123456789,\"state\":\"streaming\",\"sync_priority\":1,\"sync_state\":\"sync\"}],\"metrics\":[{\"name\":\"connections.used\",\"values\":[{\"value\":33,\"measured_at\":123456789},{\"value\":35,\"measured_at\":123456799}]},{\"name\":\"connections.max\",\"values\":[{\"value\":500,\"measured_at\":123456789},{\"value\":500,\"measured_at\":123456799}]}],\"queries\":{\"stats\":[{\"database\":\"testDb\",\"query_id\":1855550508,\"query\":\"UPDATE \\\"stats\\\" SET \\\"value\\\" = $1, \\\"updated_at\\\" = $2 WHERE \\\"stats\\\".\\\"id\\\" = $3\",\"comment\":\"/*app:worker-1*/\",\"explain\":\"explain-foo\",\"calls\":10,\"time\":3.5,\"mean_time\":0.35,\"min_time\":0.02,\"max_time\":4.9,\"rows\":10,\"shared_blocks_hit\":3,\"shared_blocks_dirtied\":1,\"block_read_time\":3.95,\"block_write_time\":10}]},\"version\":\"10.19 (Ubuntu 10.19-2.pgdg20.04+1)\",\"monitored_at\":1649299369}],\"reported_at\":1649303496,\"agent\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
 }
 
 func TestNewReportRequestReplicas(t *testing.T) {
@@ -214,11 +214,11 @@ func TestNewReportRequestReplicas(t *testing.T) {
 
 	request := NewReportRequest(config, data, 1649303496)
 
-	assert.Equal(t, "1.0.0", request.Client.Version)
+	assert.Equal(t, "1.0.0", request.Agent.Version)
 
 	json, _ := json.Marshal(request)
 
-	assert.Equal(t, "{\"servers\":[{\"config_name\":\"GREEN\",\"config_var_name\":\"GREEN_URL\",\"replica\":{\"application_name\":\"follower:651387237\",\"primary_config_name\":\"GREEN\",\"status\":\"sync\"},\"version\":\"10.19 (Ubuntu 10.19-2.pgdg20.04+1)\",\"monitored_at\":1649299369}],\"reported_at\":1649303496,\"client\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
+	assert.Equal(t, "{\"servers\":[{\"config_name\":\"GREEN\",\"config_var_name\":\"GREEN_URL\",\"replica\":{\"application_name\":\"follower:651387237\",\"primary_config_name\":\"GREEN\",\"status\":\"sync\"},\"version\":\"10.19 (Ubuntu 10.19-2.pgdg20.04+1)\",\"monitored_at\":1649299369}],\"reported_at\":1649303496,\"agent\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
 }
 
 func TestValid(t *testing.T) {
@@ -270,7 +270,7 @@ func TestToJSON(t *testing.T) {
 
 	request := NewReportRequest(config, data, 1649303496)
 	json, _ := request.ToJSON()
-	assert.Equal(t, "{\"log_metrics\":[{\"addon\":\"postgresql-contoured-12345\",\"avg_query\":\"8751\",\"avg_recv\":\"37568\",\"avg_sent\":\"1339005\",\"client_active\":\"56\",\"client_waiting\":\"0\",\"max_wait\":\"0\",\"server_active\":\"0\",\"server_idle\":\"16\",\"source\":\"pgbouncer\",\"timestamp\":\"1648166379\"}],\"reported_at\":1649303496,\"client\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
+	assert.Equal(t, "{\"log_metrics\":[{\"addon\":\"postgresql-contoured-12345\",\"avg_query\":\"8751\",\"avg_recv\":\"37568\",\"avg_sent\":\"1339005\",\"client_active\":\"56\",\"client_waiting\":\"0\",\"max_wait\":\"0\",\"server_active\":\"0\",\"server_idle\":\"16\",\"source\":\"pgbouncer\",\"timestamp\":\"1648166379\"}],\"reported_at\":1649303496,\"agent\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
 }
 
 func TestToCompressedJSON(t *testing.T) {
@@ -304,7 +304,7 @@ func TestToCompressedJSON(t *testing.T) {
 	_, _ = io.Copy(&buffer, gz)
 
 	json := string(buffer.Bytes())
-	assert.Equal(t, "{\"log_metrics\":[{\"addon\":\"postgresql-contoured-12345\",\"avg_query\":\"8751\",\"avg_recv\":\"37568\",\"avg_sent\":\"1339005\",\"client_active\":\"56\",\"client_waiting\":\"0\",\"max_wait\":\"0\",\"server_active\":\"0\",\"server_idle\":\"16\",\"source\":\"pgbouncer\",\"timestamp\":\"1648166379\"}],\"reported_at\":1649303496,\"client\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
+	assert.Equal(t, "{\"log_metrics\":[{\"addon\":\"postgresql-contoured-12345\",\"avg_query\":\"8751\",\"avg_recv\":\"37568\",\"avg_sent\":\"1339005\",\"client_active\":\"56\",\"client_waiting\":\"0\",\"max_wait\":\"0\",\"server_active\":\"0\",\"server_idle\":\"16\",\"source\":\"pgbouncer\",\"timestamp\":\"1648166379\"}],\"reported_at\":1649303496,\"agent\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
 }
 
 func buildPgTypeInterval(microseconds int64) pgtype.Interval {

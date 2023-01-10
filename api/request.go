@@ -20,7 +20,7 @@ type ReportRequest struct {
 	PostgresServers          []PostgresServer `json:"servers,omitempty"`
 	ReportedAt               int64            `json:"reported_at"`
 	LogTestMessageReceivedAt int64            `json:"log_test_message_received_at,omitempty"`
-	Client                   Client           `json:"client"`
+	Agent                    Agent            `json:"agent"`
 }
 
 type LogMetrics map[string]string
@@ -184,7 +184,7 @@ type Index struct {
 	Definition      string  `json:"definition,omitempty"`
 }
 
-type Client struct {
+type Agent struct {
 	UUID    string `json:"uuid"`
 	Version string `json:"version"`
 }
@@ -228,7 +228,7 @@ func NewReportRequest(config config.Config, data *data.Data, reportedAt int64) R
 		PostgresServers:          ConvertPostgresServers(data.PostgresServers, data.Databases, data.Replications, data.Metrics, data.Settings, data.QueryStats),
 		LogTestMessageReceivedAt: data.LogTestMessageReceivedAt,
 		ReportedAt:               reportedAt,
-		Client: Client{
+		Agent: Agent{
 			UUID:    config.UUID.String(),
 			Version: config.Version,
 		},
