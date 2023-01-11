@@ -187,6 +187,21 @@ type Index struct {
 type Agent struct {
 	UUID    string `json:"uuid"`
 	Version string `json:"version"`
+	Stats   *Stats `json:"stats,omitempty"`
+}
+
+type Stats struct {
+	LogStats *LogStats `json:"logs,omitempty"`
+}
+
+type LogStats struct {
+	Received            int `json:"received,omitempty"`
+	Postgres            int `json:"postgres,omitempty"`
+	Handled             int `json:"handled,omitempty"`
+	MetricLines         int `json:"metric_lines,omitempty"`
+	MetricsLinesDropped int `json:"metrics_dropped,omitempty"`
+	SlowQueries         int `json:"slow_queries,omitempty"`
+	SlowQueriesDropped  int `json:"slow_queries_dropped,omitempty"`
 }
 
 // NOTE: we do not want to expose replica server or client hostnames, IPs or ports
@@ -222,7 +237,7 @@ type Setting struct {
 	PendingRestart bool   `json:"pending_restart"`
 }
 
-func NewReportRequest(config config.Config, data *data.Data, reportedAt int64) ReportRequest {
+func NewReportRequest(config config.Config, data *data.Data, reportedAt int64, stats *util.Stats) ReportRequest {
 	return ReportRequest{
 		LogMetrics:               ConvertLogMetrics(data.LogMetrics),
 		PostgresServers:          ConvertPostgresServers(data.PostgresServers, data.Databases, data.Replications, data.Metrics, data.Settings, data.QueryStats),
@@ -231,6 +246,7 @@ func NewReportRequest(config config.Config, data *data.Data, reportedAt int64) R
 		Agent: Agent{
 			UUID:    config.UUID.String(),
 			Version: config.Version,
+			Stats:   ConvertStats(stats),
 		},
 	}
 }
@@ -622,6 +638,34 @@ func ConvertSettings(from []db.Setting, fromServer db.PostgresServer) []*Setting
 	}
 
 	return to
+}
+
+func ConvertStats(stats *util.Stats) *Stats {
+	data := stats.ToMap()
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	return &Stats{
+		LogStats: ConvertLogStats(data),
+	}
+}
+
+func ConvertLogStats(stats map[string]int) *LogStats {
+	if len(stats) == 0 {
+		return nil
+	}
+
+	return &LogStats{
+		Received:            stats["logs.received"],
+		Postgres:            stats["logs.postgres"],
+		Handled:             stats["logs.handled"],
+		MetricLines:         stats["logs.metric_lines"],
+		MetricsLinesDropped: stats["logs.metric_lines.dropped"],
+		SlowQueries:         stats["logs.slow_queries"],
+		SlowQueriesDropped:  stats["logs.slow_queries.dropped"],
+	}
 }
 
 func convertSqlNullInt64(nullInt64 sql.NullInt64) int64 {

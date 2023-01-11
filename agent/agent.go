@@ -31,6 +31,7 @@ type Agent struct {
 	queryStatsChannel   chan []*db.QueryStats
 	settingsChannel     chan []*db.Setting
 	rawSlowQueryChannel chan *db.SlowQuery
+	stats               *util.Stats
 }
 
 func New(config config.Config) *Agent {
@@ -47,6 +48,7 @@ func New(config config.Config) *Agent {
 		queryStatsChannel:   make(chan []*db.QueryStats, 25),
 		settingsChannel:     make(chan []*db.Setting, 25),
 		rawSlowQueryChannel: make(chan *db.SlowQuery, 100),
+		stats:               &util.Stats{},
 	}
 }
 
@@ -95,7 +97,7 @@ func (a *Agent) TestLogs() {
 }
 
 func (a *Agent) startServer() {
-	logsServer := logs.NewServer(a.config, a.logMetricChannel, a.logTestChannel, a.rawSlowQueryChannel)
+	logsServer := logs.NewServer(a.config, a.logMetricChannel, a.logTestChannel, a.rawSlowQueryChannel, a.stats)
 	logsServer.Start() // doesn't return
 }
 
@@ -141,7 +143,8 @@ func (a *Agent) updateDataChannels() {
 // scheduled
 func (a *Agent) sendRequest() {
 	d := a.data.CopyAndReset()
-	request := api.NewReportRequest(a.config, d, time.Now().UTC().Unix())
+	stats := a.stats.CopyAndReset()
+	request := api.NewReportRequest(a.config, d, time.Now().UTC().Unix(), stats)
 
 	if request.Valid() {
 		// add latest request to buffered requests, sending the latest two requests each call to this method

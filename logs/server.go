@@ -5,6 +5,7 @@ import (
 	"agent/data"
 	"agent/db"
 	"agent/logger"
+	"agent/util"
 	"io"
 	"net/http"
 
@@ -18,14 +19,16 @@ type Server struct {
 	logTestChannel      chan string
 	rawSlowQueryChannel chan *db.SlowQuery
 	router              *gin.Engine
+	stats               *util.Stats
 }
 
-func NewServer(config config.Config, logMetricChannel chan data.LogMetrics, logTestChannel chan string, rawSlowQueryChannel chan *db.SlowQuery) *Server {
+func NewServer(config config.Config, logMetricChannel chan data.LogMetrics, logTestChannel chan string, rawSlowQueryChannel chan *db.SlowQuery, stats *util.Stats) *Server {
 	return &Server{
 		config:              config,
 		logMetricChannel:    logMetricChannel,
 		logTestChannel:      logTestChannel,
 		rawSlowQueryChannel: rawSlowQueryChannel,
+		stats:               stats,
 	}
 }
 
@@ -71,6 +74,8 @@ func (s *Server) PostLogs(c *gin.Context) {
 }
 
 func (s *Server) processLogLine(line string) {
+	s.stats.Increment("logs.received")
+
 	if shouldHandleLogLine(line) {
 		s.handleLogLine(line)
 	}
@@ -85,26 +90,38 @@ func (s *Server) handleLogLine(line string) {
 		logger.Info("Log line", "line", line)
 	}
 
+	// any postgres log line or slow query that we currently handle
+	s.stats.Increment("logs.postgres")
+
 	parsedLines := parseLogLine(line)
 	if parsedLines == nil || len(parsedLines) == 0 {
 		return
 	}
 
+	// any postgres log line or slow query that we currently handle
+	s.stats.IncrementBy("logs.handled", len(parsedLines))
+
 	for _, parsed := range parsedLines {
 		if len(parsed.Metrics) > 0 {
+			s.stats.Increment("logs.metric_lines")
+
 			select {
 			case s.logMetricChannel <- parsed.Metrics:
 				// sent
 			default:
+				s.stats.Increment("logs.metric_lines.dropped")
 				logger.Warn("Dropping log metrics: channel buffer full")
 			}
 		}
 
 		if parsed.SlowQuery != nil {
+			s.stats.Increment("logs.slow_queries")
+
 			select {
 			case s.rawSlowQueryChannel <- parsed.SlowQuery:
 				// sent
 			default:
+				s.stats.Increment("logs.slow_queries.dropped")
 				logger.Warn("Dropping slow query: channel buffer full")
 			}
 		}

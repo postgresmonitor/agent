@@ -4,6 +4,7 @@ import (
 	"agent/config"
 	"agent/data"
 	"agent/db"
+	"agent/util"
 	"bytes"
 	"compress/gzip"
 	"database/sql"
@@ -158,7 +159,7 @@ func TestNewReportRequest(t *testing.T) {
 		},
 	})
 
-	request := NewReportRequest(config, data, 1649303496)
+	request := NewReportRequest(config, data, 1649303496, &util.Stats{})
 
 	assert.Equal(t, "1.0.0", request.Agent.Version)
 
@@ -212,7 +213,7 @@ func TestNewReportRequestReplicas(t *testing.T) {
 		},
 	})
 
-	request := NewReportRequest(config, data, 1649303496)
+	request := NewReportRequest(config, data, 1649303496, &util.Stats{})
 
 	assert.Equal(t, "1.0.0", request.Agent.Version)
 
@@ -227,7 +228,7 @@ func TestValid(t *testing.T) {
 	}
 
 	data := &data.Data{}
-	request := NewReportRequest(config, data, 1649303496)
+	request := NewReportRequest(config, data, 1649303496, &util.Stats{})
 	assert.False(t, request.Valid())
 
 	data.AddLogMetrics(map[string]string{
@@ -243,7 +244,7 @@ func TestValid(t *testing.T) {
 		"source":         "pgbouncer",
 		"timestamp":      "1648166379",
 	})
-	request = NewReportRequest(config, data, 1649303496)
+	request = NewReportRequest(config, data, 1649303496, &util.Stats{})
 	assert.True(t, request.Valid())
 }
 
@@ -268,7 +269,7 @@ func TestToJSON(t *testing.T) {
 		"timestamp":      "1648166379",
 	})
 
-	request := NewReportRequest(config, data, 1649303496)
+	request := NewReportRequest(config, data, 1649303496, &util.Stats{})
 	json, _ := request.ToJSON()
 	assert.Equal(t, "{\"log_metrics\":[{\"addon\":\"postgresql-contoured-12345\",\"avg_query\":\"8751\",\"avg_recv\":\"37568\",\"avg_sent\":\"1339005\",\"client_active\":\"56\",\"client_waiting\":\"0\",\"max_wait\":\"0\",\"server_active\":\"0\",\"server_idle\":\"16\",\"source\":\"pgbouncer\",\"timestamp\":\"1648166379\"}],\"reported_at\":1649303496,\"agent\":{\"uuid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"1.0.0\"}}", string(json))
 }
@@ -294,7 +295,7 @@ func TestToCompressedJSON(t *testing.T) {
 		"timestamp":      "1648166379",
 	})
 
-	request := NewReportRequest(config, data, 1649303496)
+	request := NewReportRequest(config, data, 1649303496, &util.Stats{})
 	compressed, _ := request.ToCompressedJSON()
 
 	gz, _ := gzip.NewReader(compressed)
