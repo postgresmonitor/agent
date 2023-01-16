@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/errors"
 	"agent/logger"
 	"agent/util"
 	"database/sql"
@@ -482,6 +483,7 @@ func (m *SchemaMonitor) FindTableColumns(postgresClient *PostgresClient) []*Colu
 	rows, err := postgresClient.client.Query(query)
 	if err != nil {
 		logger.Error("Find table columns error", "err", err)
+		errors.Report(err)
 		return []*Column{}
 	}
 	defer rows.Close()
@@ -503,6 +505,7 @@ func (m *SchemaMonitor) FindTableColumns(postgresClient *PostgresClient) []*Colu
 		)
 		if err != nil {
 			logger.Error("Find table columns error", "err", err)
+			errors.Report(err)
 			continue
 		}
 		if column.Type != "numeric" {
@@ -533,6 +536,7 @@ func (m *SchemaMonitor) FindTableStats(postgresClient *PostgresClient) []*Table 
 	rows, err := postgresClient.client.Query(query)
 	if err != nil {
 		logger.Error("Find table stats error", "err", err)
+		errors.Report(err)
 		return []*Table{}
 	}
 	defer rows.Close()
@@ -577,6 +581,7 @@ func (m *SchemaMonitor) FindTableStats(postgresClient *PostgresClient) []*Table 
 		)
 		if err != nil {
 			logger.Error("Find table stats error", "err", err)
+			errors.Report(err)
 			continue
 		}
 		if diskToastBlocksRead.Valid {
@@ -641,6 +646,7 @@ func (m *SchemaMonitor) FindIndexes(postgresClient *PostgresClient) []*Index {
 		)
 		if err != nil {
 			logger.Error("Index error", "err", err)
+			errors.Report(err)
 			continue
 		}
 
@@ -649,6 +655,7 @@ func (m *SchemaMonitor) FindIndexes(postgresClient *PostgresClient) []*Index {
 
 	if err := rows.Err(); err != nil {
 		logger.Error("Indexes error", "err", err)
+		errors.Report(err)
 	}
 
 	// add unused field
@@ -696,6 +703,7 @@ func (m *SchemaMonitor) FindUnusedIndexes(postgresClient *PostgresClient) []*Unu
 		)
 		if err != nil {
 			logger.Error("Index error", "err", err)
+			errors.Report(err)
 			continue
 		}
 
@@ -704,6 +712,7 @@ func (m *SchemaMonitor) FindUnusedIndexes(postgresClient *PostgresClient) []*Unu
 
 	if err := rows.Err(); err != nil {
 		logger.Error("Unused Indexes error", "err", err)
+		errors.Report(err)
 	}
 
 	return unusedIndexes

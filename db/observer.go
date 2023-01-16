@@ -2,6 +2,7 @@ package db
 
 import (
 	"agent/config"
+	"agent/errors"
 	"agent/logger"
 	"agent/schedule"
 )
@@ -95,6 +96,7 @@ func (o *Observer) WriteLogTestMessage() {
 	err := postgresClient.client.Exec(testMessage)
 	if err != nil {
 		logger.Error("Error writing log test message with RAISE NOTICE", "err", err)
+		errors.Report(err)
 	}
 }
 

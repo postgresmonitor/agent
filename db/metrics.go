@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/errors"
 	"agent/logger"
 	"time"
 )
@@ -54,6 +55,7 @@ func (m *MetricMonitor) FindUsedConnectionsMetric(postgresClient *PostgresClient
 	err := postgresClient.client.QueryRow(query).Scan(&used, &reserved)
 	if err != nil {
 		logger.Error("Connection metrics error", "err", err)
+		errors.Report(err)
 		return []*Metric{}
 	}
 

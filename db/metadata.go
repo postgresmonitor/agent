@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/errors"
 	"agent/logger"
 	"log"
 	"strings"
@@ -57,6 +58,7 @@ func (m *MetadataMonitor) FindMaxConnections(postgresClient *PostgresClient) int
 	err := postgresClient.client.QueryRow(query).Scan(&maxConnections)
 	if err != nil {
 		logger.Error("Max connection metrics error", "err", err)
+		errors.Report(err)
 		return 0
 	}
 

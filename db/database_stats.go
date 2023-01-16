@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/errors"
 	"agent/logger"
 	"agent/util"
 	"database/sql"
@@ -89,6 +90,7 @@ func (m *MetricMonitor) FindDatabaseStatMetrics(postgresClient *PostgresClient) 
 	)
 	if err != nil {
 		logger.Error("DatabaseStat metrics error", "err", err)
+		errors.Report(err)
 		return []*Metric{}
 	}
 
@@ -145,6 +147,7 @@ func (m *MetricMonitor) FindDatabaseCacheHitMetrics(postgresClient *PostgresClie
 	err := postgresClient.client.QueryRow(query).Scan(&indexCacheHit, &tableCacheHit)
 	if err != nil {
 		logger.Error("Database cache hit metrics error", "err", err)
+		errors.Report(err)
 		return []*Metric{}
 	}
 

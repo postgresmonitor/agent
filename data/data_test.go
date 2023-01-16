@@ -2,6 +2,7 @@ package data
 
 import (
 	"agent/db"
+	"agent/errors"
 	"database/sql"
 	"reflect"
 	"testing"
@@ -246,6 +247,48 @@ func TestAddReplication(t *testing.T) {
 	assert.Equal(t, "1.2.3.5", data.Replications[0].Replicas[0].ClientAddr.String)
 }
 
+func TestAddErrorReport_AddOne(t *testing.T) {
+	data := &Data{}
+
+	er := &errors.ErrorReport{}
+
+	data.AddErrorReport(er)
+
+	assert.Equal(t, 1, len(data.Errors))
+}
+
+func TestAddErrorReport_AddEleven(t *testing.T) {
+	data := &Data{}
+
+	n := 0
+	for n < 15 {
+		data.AddErrorReport(&errors.ErrorReport{})
+		n += 1
+	}
+
+	assert.Equal(t, 10, len(data.Errors))
+}
+
+func TestAddErrorReport_Panic(t *testing.T) {
+	data := &Data{}
+
+	n := 0
+	for n < 11 {
+		data.AddErrorReport(&errors.ErrorReport{})
+		n += 1
+	}
+
+	assert.Equal(t, 10, len(data.Errors))
+
+	panic := &errors.ErrorReport{
+		Panic: true,
+	}
+	data.AddErrorReport(panic)
+
+	assert.Equal(t, 11, len(data.Errors))
+	assert.True(t, data.Errors[10].Panic)
+}
+
 func TestCopyAndReset(t *testing.T) {
 	data := &Data{}
 	serverId := &db.ServerID{
@@ -304,6 +347,7 @@ func TestCopyAndReset(t *testing.T) {
 		Name:  "foo_setting",
 		Value: "10",
 	})
+	data.AddErrorReport(&errors.ErrorReport{})
 
 	copiedData := data.CopyAndReset()
 
@@ -315,6 +359,7 @@ func TestCopyAndReset(t *testing.T) {
 		Metrics:         []db.Metric{},
 		Settings:        []db.Setting{},
 		QueryStats:      []db.QueryStats{},
+		Errors:          []errors.ErrorReport{},
 	}
 	assert.Equal(t, expectedEmptyData, data)
 
@@ -344,6 +389,8 @@ func TestCopyAndReset(t *testing.T) {
 	assert.Equal(t, 1, len(copiedData.Replications))
 	assert.Equal(t, "follower", copiedData.Replications[0].Replica.ApplicationName)
 	assert.Equal(t, "1.2.3.4", copiedData.Replications[0].Replicas[0].ClientAddr.String)
+
+	assert.Equal(t, 1, len(copiedData.Errors))
 }
 
 func buildPgTypeInterval(microseconds int64) pgtype.Interval {

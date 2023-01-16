@@ -2,6 +2,7 @@ package db
 
 import (
 	"agent/config"
+	"agent/errors"
 	"agent/logger"
 	"agent/util"
 	"reflect"
@@ -20,12 +21,10 @@ type MonitorWorker struct {
 
 func (m *MonitorWorker) Start() {
 	// recover from monitor panics but log what happened
-	defer func() {
-		if p := recover(); p != nil {
-			msg := reflect.TypeOf(m.monitor).Elem().Name() + " panicked!"
-			logger.Error(msg, "server", m.postgresClient.serverID.ConfigName, "panic", p)
-		}
-	}()
+	defer errors.DeferRecoverWithCallback(func(err error) {
+		msg := reflect.TypeOf(m.monitor).Elem().Name() + " panicked!"
+		logger.Error(msg, "server", m.postgresClient.serverID.ConfigName, "panic", err.Error())
+	})
 
 	started_at := time.Now().UTC().UnixNano()
 

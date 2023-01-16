@@ -5,6 +5,7 @@ import (
 	"agent/config"
 	"agent/data"
 	"agent/db"
+	"agent/errors"
 	"agent/logger"
 	"agent/logs"
 	"agent/schedule"
@@ -136,6 +137,8 @@ func (a *Agent) updateDataChannels() {
 			a.data.AddSettings(settings)
 		case stats := <-a.queryStatsChannel:
 			a.data.AddQueryStats(stats)
+		case err := <-errors.ErrorsChannel:
+			a.data.AddErrorReport(err)
 		}
 	}
 }

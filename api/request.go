@@ -4,6 +4,7 @@ import (
 	"agent/config"
 	"agent/data"
 	"agent/db"
+	"agent/errors"
 	"agent/util"
 	"bytes"
 	"compress/gzip"
@@ -185,9 +186,10 @@ type Index struct {
 }
 
 type Agent struct {
-	UUID    string `json:"uuid"`
-	Version string `json:"version"`
-	Stats   *Stats `json:"stats,omitempty"`
+	UUID    string   `json:"uuid"`
+	Version string   `json:"version"`
+	Stats   *Stats   `json:"stats,omitempty"`
+	Errors  []*Error `json:"errors,omitempty"`
 }
 
 type Stats struct {
@@ -209,6 +211,13 @@ type Replica struct {
 	ApplicationName   string `json:"application_name,omitempty"`
 	PrimaryConfigName string `json:"primary_config_name,omitempty"` // ex. GREEN
 	Status            string `json:"status,omitempty"`
+}
+
+// we track agent errors and panics to proactively be aware of agent issues
+type Error struct {
+	Error      string `json:"error,omitempty"`
+	Panic      bool   `json:"panic,omitempty"`
+	StackTrace string `json:"stack_trace,omitempty"`
 }
 
 type ReplicaClient struct {
@@ -247,6 +256,7 @@ func NewReportRequest(config config.Config, data *data.Data, reportedAt int64, s
 			UUID:    config.UUID.String(),
 			Version: config.Version,
 			Stats:   ConvertStats(stats),
+			Errors:  ConvertErrors(data.Errors),
 		},
 	}
 }
@@ -666,6 +676,25 @@ func ConvertLogStats(stats map[string]int) *LogStats {
 		SlowQueries:         stats["logs.slow_queries"],
 		SlowQueriesDropped:  stats["logs.slow_queries.dropped"],
 	}
+}
+
+func ConvertErrors(errors []errors.ErrorReport) []*Error {
+	if len(errors) == 0 {
+		return nil
+	}
+
+	var toErrors []*Error
+
+	for _, err := range errors {
+		toErr := &Error{
+			Error:      err.Error.Error(),
+			Panic:      err.Panic,
+			StackTrace: err.StackTrace,
+		}
+		toErrors = append(toErrors, toErr)
+	}
+
+	return toErrors
 }
 
 func convertSqlNullInt64(nullInt64 sql.NullInt64) int64 {

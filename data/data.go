@@ -2,6 +2,7 @@ package data
 
 import (
 	"agent/db"
+	"agent/errors"
 	"reflect"
 	"sync"
 )
@@ -17,6 +18,7 @@ type Data struct {
 	Replications             []db.Replication
 	Settings                 []db.Setting
 	QueryStats               []db.QueryStats
+	Errors                   []errors.ErrorReport
 	LogTestMessageReceivedAt int64
 	mu                       sync.Mutex
 }
@@ -164,6 +166,30 @@ func (d *Data) AddQueryStats(stats []*db.QueryStats) {
 	}
 }
 
+func (d *Data) AddErrorReport(err *errors.ErrorReport) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// track the first 10 errors
+	if len(d.Errors) < 10 {
+		d.Errors = append(d.Errors, *err)
+	} else if err.Panic {
+		// if a panic is reported, always track it
+		// unless at 10 errors already and a panic has been tracked
+		var panicAlreadyTracked bool
+		for _, err := range d.Errors {
+			if err.Panic {
+				panicAlreadyTracked = true
+				break
+			}
+		}
+
+		if !panicAlreadyTracked {
+			d.Errors = append(d.Errors, *err)
+		}
+	}
+}
+
 func (d *Data) CopyAndReset() *Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -189,6 +215,9 @@ func (d *Data) CopyAndReset() *Data {
 	queryStatsCopy := make([]db.QueryStats, len(d.QueryStats))
 	copy(queryStatsCopy, d.QueryStats)
 
+	errorsCopy := make([]errors.ErrorReport, len(d.Errors))
+	copy(errorsCopy, d.Errors)
+
 	copiedData := &Data{
 		LogMetrics:               logMetricsCopy,
 		Metrics:                  metricsCopy,
@@ -197,6 +226,7 @@ func (d *Data) CopyAndReset() *Data {
 		Replications:             replicationsCopy,
 		Settings:                 settingsCopy,
 		QueryStats:               queryStatsCopy,
+		Errors:                   errorsCopy,
 		LogTestMessageReceivedAt: d.LogTestMessageReceivedAt,
 	}
 
@@ -207,6 +237,7 @@ func (d *Data) CopyAndReset() *Data {
 	d.Replications = []db.Replication{}
 	d.Settings = []db.Setting{}
 	d.QueryStats = []db.QueryStats{}
+	d.Errors = []errors.ErrorReport{}
 	d.LogTestMessageReceivedAt = 0
 
 	return copiedData

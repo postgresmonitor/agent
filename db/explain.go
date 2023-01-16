@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/errors"
 	"agent/logger"
 	"time"
 )
@@ -29,6 +30,7 @@ func (e *Explainer) Explain(postgresClient *PostgresClient, slowQuery *SlowQuery
 
 	if err != nil {
 		logger.Error("Explain error", "err", err)
+		errors.Report(err)
 		return explain
 	}
 	defer rows.Close()
