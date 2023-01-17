@@ -29,7 +29,7 @@ func (e *Explainer) Explain(postgresClient *PostgresClient, slowQuery *SlowQuery
 	rows, err := postgresClient.client.Query(explainQuery)
 
 	if err != nil {
-		logger.Error("Explain error", "err", err)
+		logger.Error("Explain error", "err", err, "explain_query", explainQuery)
 		errors.Report(err)
 		return explain
 	}
