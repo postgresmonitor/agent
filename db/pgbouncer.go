@@ -92,16 +92,18 @@ func (m *PgBouncerMonitor) InitPgBouncerMetadata(postgresClient *PostgresClient)
 			// database - this isn't a full proof solution on heroku since a small number of connections are used periodically
 			// likely by heroku health check services
 			poolStats := m.GetPoolStats(pgBouncerConn, postgresClient.serverID.Database)
-			if poolStats.ClientActiveConnections > 0 || poolStats.ClientWaitingConnections > 0 || poolStats.ServerActiveConnections > 0 {
-				enabled = true
+			if poolStats != nil {
+				if poolStats.ClientActiveConnections > 0 || poolStats.ClientWaitingConnections > 0 || poolStats.ServerActiveConnections > 0 {
+					enabled = true
 
-				maxServerConnections := m.GetMaxServerConnections(pgBouncerConn, postgresClient.serverID.Database)
+					maxServerConnections := m.GetMaxServerConnections(pgBouncerConn, postgresClient.serverID.Database)
 
-				postgresClient.pgBouncerVersion = version
-				postgresClient.pgBouncerMaxServerConnections = maxServerConnections
+					postgresClient.pgBouncerVersion = version
+					postgresClient.pgBouncerMaxServerConnections = maxServerConnections
 
-				// print version to help with debugging future pgbouncer issues
-				logger.Info("PgBouncer", "server", postgresClient.serverID.ConfigName, "enabled", enabled, "version", version)
+					// print version to help with debugging future pgbouncer issues
+					logger.Info("PgBouncer", "server", postgresClient.serverID.ConfigName, "enabled", enabled, "version", version)
+				}
 			}
 		}
 	}
