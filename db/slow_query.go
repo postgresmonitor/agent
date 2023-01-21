@@ -56,9 +56,11 @@ func (o *Observer) MonitorSlowQueries() {
 
 			// obfuscate explains since the raw explain can contain query inputs
 			explain := o.explainer.Explain(postgresClient, slowQuery)
-			slowQuery.Explain = o.obfuscator.ObfuscateExplain(explain)
-			// if explain is empty, then the query was already explained the last hour
-			logger.Debug("Slow Query", "duration_ms", slowQuery.DurationMs, "query", slowQuery.Raw, "obfuscated", slowQuery.Obfuscated, "fingerprint", slowQuery.Fingerprint, "explain", explain, "obfuscated_explain", slowQuery.Explain, "measured_at", slowQuery.MeasuredAt)
+			if len(explain) > 0 {
+				slowQuery.Explain = o.obfuscator.ObfuscateExplain(explain)
+				// if explain is empty, then the query was already explained the last hour
+				logger.Debug("Slow Query", "duration_ms", slowQuery.DurationMs, "query", slowQuery.Raw, "obfuscated", slowQuery.Obfuscated, "fingerprint", slowQuery.Fingerprint, "explain", explain, "obfuscated_explain", slowQuery.Explain, "measured_at", slowQuery.MeasuredAt)
+			}
 
 			// report slow query stats
 			slowQueryStats := &QueryStats{

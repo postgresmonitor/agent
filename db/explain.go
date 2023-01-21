@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var MaxQueryLength = 30000
+
 type Explainer struct {
 	// cache of query fingerprint to expiration time
 	explained map[string]time.Time
@@ -22,6 +24,12 @@ func (e *Explainer) Explain(postgresClient *PostgresClient, slowQuery *SlowQuery
 	expiration, ok := e.explained[slowQuery.Fingerprint]
 	if ok && time.Now().UTC().Before(expiration) {
 		return explain
+	}
+
+	// some very long queries can be truncated in postgres logs which can cause
+	// explain query errors
+	if len(slowQuery.Raw) > MaxQueryLength {
+		return ""
 	}
 
 	// TODO: add support for ANALYZE and BUFFERS as an opt-in config setting
