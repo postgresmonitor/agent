@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const version = "0.0.5"
+const version = "0.0.6"
 
 type Config struct {
 	APIEndpoint string
