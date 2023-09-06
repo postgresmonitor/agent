@@ -26,6 +26,10 @@ type PostgresClient struct {
 	// ex host from url
 	host string
 
+	database string
+	// used in matching pgbouncer metrics
+	username string
+
 	platform         string
 	isAuroraPlatform bool
 	isHerokuPlatform bool
@@ -86,11 +90,13 @@ func NewPostgresClient(config config.Config, configVar []string) *PostgresClient
 
 	var host string
 	var database string
+	var username string
 	parsedUrl, err := nurl.Parse(url)
 	if err != nil {
 		logger.Error("Invalid URL! Missing host and database")
 		host = ""
 		database = ""
+		username = ""
 	} else {
 		hostAndPort := strings.Split(parsedUrl.Host, ":")
 		host = hostAndPort[0]
@@ -99,6 +105,8 @@ func NewPostgresClient(config config.Config, configVar []string) *PostgresClient
 		if database == "" {
 			logger.Error("Database is not configured for URL", "host", host)
 		}
+
+		username = parsedUrl.User.Username()
 	}
 
 	// set up appending more url params
@@ -131,6 +139,8 @@ func NewPostgresClient(config config.Config, configVar []string) *PostgresClient
 		},
 		url:      url,
 		host:     host,
+		database: database,
+		username: username,
 		platform: platform,
 	}
 

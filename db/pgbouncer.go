@@ -98,7 +98,7 @@ func (m *PgBouncerMonitor) InitPgBouncerMetadata(postgresClient *PostgresClient)
 			// heroku runs pgbouncer by default regardless if an app is using pgbouncer to connect to their
 			// database - this isn't a full proof solution on heroku since a small number of connections are used periodically
 			// likely by heroku health check services
-			poolStats := m.GetPoolStats(pgBouncerConn, postgresClient.serverID.Database)
+			poolStats := m.GetPoolStats(pgBouncerConn, postgresClient.serverID.Database, postgresClient.username)
 			if poolStats != nil {
 				if poolStats.ClientActiveConnections > 0 || poolStats.ClientWaitingConnections > 0 || poolStats.ServerActiveConnections > 0 {
 					enabled = true
@@ -161,7 +161,7 @@ func (m *PgBouncerMonitor) GetMetrics(postgresClient *PostgresClient) []*Metric 
 	m.pgBouncerStatsState.Stats[*postgresClient.serverID] = pgBouncerStats
 
 	// pool stats
-	poolStats := m.GetPoolStats(pgBouncerConn, postgresClient.serverID.Database)
+	poolStats := m.GetPoolStats(pgBouncerConn, postgresClient.serverID.Database, postgresClient.username)
 
 	metrics = append(metrics,
 		NewMetric("pgbouncer.connections.client.active", poolStats.ClientActiveConnections, "", *postgresClient.serverID, now),
@@ -215,7 +215,7 @@ func (m *PgBouncerMonitor) GetTotalStats(pgBouncerConn *sql.DB, database string)
 	return pgBouncerStats
 }
 
-func (m *PgBouncerMonitor) GetPoolStats(pgBouncerConn *sql.DB, database string) *PgBouncerPoolStats {
+func (m *PgBouncerMonitor) GetPoolStats(pgBouncerConn *sql.DB, database string, username string) *PgBouncerPoolStats {
 	var poolStats *PgBouncerPoolStats
 
 	rows, err := pgBouncerConn.Query("show pools")
@@ -256,7 +256,8 @@ func (m *PgBouncerMonitor) GetPoolStats(pgBouncerConn *sql.DB, database string) 
 			continue
 		}
 
-		if db == database {
+		// there can be multiple pools per database
+		if db == database && user == username {
 			poolStats = &stats
 		}
 	}
