@@ -2,7 +2,6 @@ package db
 
 import (
 	"log"
-	"os"
 	"strings"
 )
 
@@ -26,9 +25,7 @@ var GetPlatform = func(client *Client, host string) string {
 }
 
 func IsHerokuPlatform(client *Client) bool {
-	if os.Getenv("DYNO") != "" {
-		return true
-	} else if HasHerokuSchema(client) {
+	if HasHerokuSchema(client) {
 		return true
 	}
 
