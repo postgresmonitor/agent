@@ -20,36 +20,38 @@ import (
 const maxBufferedRequests = 10
 
 type Agent struct {
-	config              config.Config
-	data                *data.Data
-	requests            *deque.Deque[*api.ReportRequest]
-	logMetricChannel    chan data.LogMetrics
-	logTestChannel      chan string
-	serverChannel       chan *db.PostgresServer
-	databaseChannel     chan *db.Database
-	replicationChannel  chan *db.Replication
-	metricsChannel      chan []*db.Metric
-	queryStatsChannel   chan []*db.QueryStats
-	settingsChannel     chan []*db.Setting
-	rawSlowQueryChannel chan *db.SlowQuery
-	stats               *util.Stats
+	config                 config.Config
+	data                   *data.Data
+	requests               *deque.Deque[*api.ReportRequest]
+	startLogsServerChannel chan bool
+	logMetricChannel       chan data.LogMetrics
+	logTestChannel         chan string
+	serverChannel          chan *db.PostgresServer
+	databaseChannel        chan *db.Database
+	replicationChannel     chan *db.Replication
+	metricsChannel         chan []*db.Metric
+	queryStatsChannel      chan []*db.QueryStats
+	settingsChannel        chan []*db.Setting
+	rawSlowQueryChannel    chan *db.SlowQuery
+	stats                  *util.Stats
 }
 
 func New(config config.Config) *Agent {
 	return &Agent{
-		config:              config,
-		data:                &data.Data{},
-		requests:            deque.New[*api.ReportRequest](maxBufferedRequests, maxBufferedRequests),
-		logMetricChannel:    make(chan data.LogMetrics, 50),
-		logTestChannel:      make(chan string, 10),
-		serverChannel:       make(chan *db.PostgresServer, 25),
-		databaseChannel:     make(chan *db.Database, 25),
-		replicationChannel:  make(chan *db.Replication, 25),
-		metricsChannel:      make(chan []*db.Metric, 25),
-		queryStatsChannel:   make(chan []*db.QueryStats, 25),
-		settingsChannel:     make(chan []*db.Setting, 25),
-		rawSlowQueryChannel: make(chan *db.SlowQuery, 100),
-		stats:               &util.Stats{},
+		config:                 config,
+		data:                   &data.Data{},
+		requests:               deque.New[*api.ReportRequest](maxBufferedRequests, maxBufferedRequests),
+		startLogsServerChannel: make(chan bool, 1),
+		logMetricChannel:       make(chan data.LogMetrics, 50),
+		logTestChannel:         make(chan string, 10),
+		serverChannel:          make(chan *db.PostgresServer, 25),
+		databaseChannel:        make(chan *db.Database, 25),
+		replicationChannel:     make(chan *db.Replication, 25),
+		metricsChannel:         make(chan []*db.Metric, 25),
+		queryStatsChannel:      make(chan []*db.QueryStats, 25),
+		settingsChannel:        make(chan []*db.Setting, 25),
+		rawSlowQueryChannel:    make(chan *db.SlowQuery, 100),
+		stats:                  &util.Stats{},
 	}
 }
 
@@ -63,11 +65,8 @@ func (a *Agent) Run() {
 	delayJitter := time.Duration(rand.Intn(30)) * time.Second
 	go schedule.Schedule(a.sendRequest, 60*time.Second, delayJitter)
 
-	// starts it's own go routines
-	go a.startPostgresObserver()
-
 	// doesn't return and runs in main thread
-	a.startServer()
+	a.startPostgresObserver()
 }
 
 // build servers and metadata and report them once
@@ -107,7 +106,7 @@ func (a *Agent) startPostgresObserver() {
 }
 
 func (a *Agent) newObserver() *db.Observer {
-	return db.NewObserver(a.config, a.serverChannel, a.databaseChannel, a.replicationChannel, a.metricsChannel, a.queryStatsChannel, a.settingsChannel, a.rawSlowQueryChannel)
+	return db.NewObserver(a.config, a.startLogsServerChannel, a.serverChannel, a.databaseChannel, a.replicationChannel, a.metricsChannel, a.queryStatsChannel, a.settingsChannel, a.rawSlowQueryChannel)
 }
 
 // runs forever
@@ -117,6 +116,11 @@ func (a *Agent) updateDataChannels() {
 	// one channel is overwhelmingly more busy than the others
 	for {
 		select {
+		case startLogsServer := <-a.startLogsServerChannel:
+			// only start logs server if the current platform supports it
+			if startLogsServer {
+				go a.startServer()
+			}
 		case logMetrics := <-a.logMetricChannel:
 			a.data.AddLogMetrics(logMetrics)
 		case <-a.logTestChannel:

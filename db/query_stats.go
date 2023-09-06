@@ -136,6 +136,19 @@ type QueryStatsMonitor struct {
 }
 
 func (m *QueryStatsMonitor) Run(postgresClient *PostgresClient) {
+	// verify that db_stat_statements exists
+	if postgresClient.pgStatStatmentsExists == nil {
+		exists := m.CheckPgStatStatementsExists(postgresClient)
+		postgresClient.SetPgStatStatmentsExists(exists)
+		if !exists {
+			logger.Warn("Missing pg_stat_statements extension - no query statistics will be collected without the extension")
+		}
+	}
+
+	if !*postgresClient.pgStatStatmentsExists {
+		return
+	}
+
 	// initialize map
 	if m.queryStatsState.Stats == nil {
 		m.queryStatsState.Stats = make(map[ServerID][]*QueryStats)
@@ -215,6 +228,7 @@ func (m *QueryStatsMonitor) QueryForStats(postgresClient *PostgresClient) []*Que
 
 	rows, err := postgresClient.client.Query(query)
 
+	// TODO: test this against Aurora without a pg_stat_statements being set up - add logging that it's missing - report up to the api that it's missing?
 	if err != nil {
 		return []*QueryStats{}
 	}
@@ -434,4 +448,19 @@ func (m *QueryStatsMonitor) FilterStats(queryStats []*QueryStats) []*QueryStats 
 	}
 
 	return filtered
+}
+
+func (m *QueryStatsMonitor) CheckPgStatStatementsExists(postgresClient *PostgresClient) bool {
+	var hasExtension bool
+
+	// could also use a specific aurora function like aurora_db_instance_identifier() or aurora_version()
+	// but those may not be available on all aurora versions
+	query := "select 1 from pg_extension where extname = 'pg_stat_statements'" + postgresMonitorQueryComment()
+
+	err := postgresClient.client.QueryRow(query).Scan(&hasExtension)
+	if err != nil {
+		hasExtension = false
+	}
+
+	return hasExtension
 }

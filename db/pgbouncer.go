@@ -3,6 +3,7 @@ package db
 import (
 	"agent/logger"
 	"agent/util"
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -79,6 +80,12 @@ func (m *PgBouncerMonitor) Run(postgresClient *PostgresClient) {
 func (m *PgBouncerMonitor) InitPgBouncerMetadata(postgresClient *PostgresClient) {
 	enabled := false
 
+	// pgbouncer monitoring is not supported for aws dbs
+	if postgresClient.isAuroraPlatform || postgresClient.isRDSPlatform {
+		postgresClient.SetPgBouncerEnabled(false)
+		return
+	}
+
 	pgBouncerConn := m.GetConnection(postgresClient)
 	if pgBouncerConn != nil {
 		defer pgBouncerConn.Close()
@@ -102,7 +109,7 @@ func (m *PgBouncerMonitor) InitPgBouncerMetadata(postgresClient *PostgresClient)
 					postgresClient.pgBouncerMaxServerConnections = maxServerConnections
 
 					// print version to help with debugging future pgbouncer issues
-					logger.Info("PgBouncer", "server", postgresClient.serverID.ConfigName, "enabled", enabled, "version", version)
+					logger.Info("PgBouncer", "server", postgresClient.serverID.Name, "enabled", enabled, "version", version)
 				}
 			}
 		}
@@ -313,7 +320,10 @@ func (m *PgBouncerMonitor) GetMaxServerConnections(pgBouncerConn *sql.DB, databa
 func (m *PgBouncerMonitor) GetVersion(pgBouncerConn *sql.DB) string {
 	var version string
 
-	err := pgBouncerConn.QueryRow("show version").Scan(&version)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := pgBouncerConn.QueryRowContext(ctx, "show version").Scan(&version)
 	if err != nil {
 		return ""
 	}

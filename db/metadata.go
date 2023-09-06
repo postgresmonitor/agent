@@ -21,13 +21,9 @@ func (m *MetadataMonitor) Run(postgresClient *PostgresClient) {
 		postgresClient.maxConnections = m.FindMaxConnections(postgresClient)
 	}
 
-	if postgresClient.platform == "" {
-		postgresClient.platform = GetPlatform(postgresClient)
-	}
-
 	server := &PostgresServer{
 		ServerID: &ServerID{
-			ConfigName:    postgresClient.serverID.ConfigName,
+			Name:          postgresClient.serverID.Name,
 			ConfigVarName: postgresClient.serverID.ConfigVarName,
 		},
 		Platform:       postgresClient.platform,
@@ -67,13 +63,33 @@ func (m *MetadataMonitor) FindMaxConnections(postgresClient *PostgresClient) int
 
 func (m *MetadataMonitor) FindPostgresVersion(postgresClient *PostgresClient) string {
 	var versionString string
-	err := postgresClient.client.QueryRow("select current_setting('server_version') as version" + postgresMonitorQueryComment()).Scan(&versionString)
-	if err != nil {
-		log.Println("Error: ", err)
-		return ""
+
+	if postgresClient.isAuroraPlatform {
+		versionString = m.FindAuroraPostgresVersion(postgresClient)
+	}
+
+	if versionString == "" {
+		err := postgresClient.client.QueryRow("select current_setting('server_version') as version" + postgresMonitorQueryComment()).Scan(&versionString)
+		if err != nil {
+			log.Println("Error: ", err)
+			return ""
+		}
 	}
 
 	// remove trailing version info - ex. 10.21 (Ubuntu 10.21-1.pgdg20.04+1)
 	parts := strings.Split(versionString, " ")
 	return parts[0]
+}
+
+func (m *MetadataMonitor) FindAuroraPostgresVersion(postgresClient *PostgresClient) string {
+	var versionString string
+
+	// the aurora_version() method may provide a more specific version number with patch version
+	err := postgresClient.client.QueryRow("select * from aurora_version()" + postgresMonitorQueryComment()).Scan(&versionString)
+	if err != nil {
+		log.Println("Error: ", err)
+		return ""
+	}
+
+	return versionString
 }

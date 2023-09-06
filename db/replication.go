@@ -232,6 +232,10 @@ func (m *ReplicationMonitor) FindReplica(postgresClient *PostgresClient) *Replic
 	var replica Replica
 	var connInfo string
 
+	// TODO: ERROR:  Function pg_stat_get_wal_receiver() is currently not supported in Aurora
+	// TODO: select * from aurora_replica_status(); - includes replica_lag_in_msec, cur_replay_latency_in_usec
+	// also includes iops and cpu (of replica?)
+
 	// NOTE: PG 10 doesn't have sender_host available so we extract it from the conninfo
 	// PG 11 adds this field https://www.postgresql.org/docs/11/monitoring-stats.html#PG-STAT-WAL-RECEIVER-VIEW
 	query := `select status, conninfo from pg_stat_wal_receiver` + postgresMonitorQueryComment()
@@ -259,7 +263,7 @@ func (m *ReplicationMonitor) FindReplica(postgresClient *PostgresClient) *Replic
 	// match server host with client config name
 	for _, postgresClient := range m.postgresClients {
 		if postgresClient.host == replica.PrimaryHost {
-			replica.PrimaryConfigName = postgresClient.serverID.ConfigName
+			replica.PrimaryConfigName = postgresClient.serverID.Name
 			break
 		}
 	}
@@ -293,6 +297,7 @@ func (m *ReplicationMonitor) FindWalReceiverBackendStart(postgresClient *Postgre
 // because the primary is not writing/updating
 func (m *ReplicationMonitor) FindReplicationLag(postgresClient *PostgresClient) *pgtype.Interval {
 	var lag pgtype.Interval
+	// TODO: ERROR:  Function pg_last_xact_replay_timestamp() is currently not supported for Aurora
 	// "select extract(epoch from coalesce(now() - pg_last_xact_replay_timestamp(), 0 * INTERVAL '1 minute'))::int AS lag" - as seconds?
 	err := postgresClient.client.QueryRow("select now() - pg_last_xact_replay_timestamp() as lag" + postgresMonitorQueryComment()).Scan(&lag)
 	if err != nil {

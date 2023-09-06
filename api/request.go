@@ -305,7 +305,7 @@ func ConvertPostgresServers(fromServers []db.PostgresServer, fromDbs []db.Databa
 	for _, fromServer := range fromServers {
 		toServer := PostgresServer{
 			ConfigVarName:  fromServer.ServerID.ConfigVarName,
-			ConfigName:     fromServer.ServerID.ConfigName,
+			ConfigName:     fromServer.ServerID.Name,
 			Platform:       fromServer.Platform,
 			MaxConnections: fromServer.MaxConnections,
 			Settings:       ConvertSettings(fromSettings, fromServer),
@@ -322,7 +322,7 @@ func ConvertPostgresServers(fromServers []db.PostgresServer, fromDbs []db.Databa
 		// convert matching dbs
 		for _, database := range fromDbs {
 			// only one tracked database + schema per database so no aggregation needed
-			if database.ServerID.ConfigName == fromServer.ServerID.ConfigName {
+			if database.ServerID.Name == fromServer.ServerID.Name {
 				toServer.Databases = append(toServer.Databases, ConvertDatabase(&database))
 			}
 		}
@@ -330,14 +330,14 @@ func ConvertPostgresServers(fromServers []db.PostgresServer, fromDbs []db.Databa
 		// convert replica/replicas
 		for _, fromReplication := range fromReplications {
 			// only one tracked replica + replica clients per server so no aggregation needed
-			if fromReplication.ServerID.ConfigName == fromServer.ServerID.ConfigName {
+			if fromReplication.ServerID.Name == fromServer.ServerID.Name {
 				toServer.Replica = ConvertReplica(fromReplication.Replica)
 				toServer.Replicas = ConvertReplicas(fromReplication.Replicas)
 			}
 		}
 
-		toServer.Metrics = ConvertMetrics(fromServer.ServerID.ConfigName, fromMetrics)
-		toServer.Queries = ConvertQueries(fromServer.ServerID.ConfigName, fromQueryStats)
+		toServer.Metrics = ConvertMetrics(fromServer.ServerID.Name, fromMetrics)
+		toServer.Queries = ConvertQueries(fromServer.ServerID.Name, fromQueryStats)
 
 		to = append(to, toServer)
 	}
@@ -345,7 +345,7 @@ func ConvertPostgresServers(fromServers []db.PostgresServer, fromDbs []db.Databa
 	return to
 }
 
-func ConvertMetrics(configName string, fromMetrics []db.Metric) []*Metric {
+func ConvertMetrics(name string, fromMetrics []db.Metric) []*Metric {
 	var metrics []*Metric
 
 	// unique metric name and entity id tuples
@@ -354,7 +354,7 @@ func ConvertMetrics(configName string, fromMetrics []db.Metric) []*Metric {
 	// track unique metric names
 	for _, from := range fromMetrics {
 		// restrict to the current server
-		if from.ServerID.ConfigName == configName {
+		if from.ServerID.Name == name {
 			var found bool
 			for _, metricID := range metricIDs {
 				if metricID[0] == from.Name && metricID[1] == from.Entity {
@@ -374,7 +374,7 @@ func ConvertMetrics(configName string, fromMetrics []db.Metric) []*Metric {
 		var metricValues []MetricValue
 		for _, from := range fromMetrics {
 			// restrict to the current server plus metric name & entity
-			if from.ServerID.ConfigName == configName && from.Name == metricID[0] && from.Entity == metricID[1] {
+			if from.ServerID.Name == name && from.Name == metricID[0] && from.Entity == metricID[1] {
 				if metric == nil {
 					metric = &Metric{
 						Name:   from.Name,
@@ -393,12 +393,12 @@ func ConvertMetrics(configName string, fromMetrics []db.Metric) []*Metric {
 	return metrics
 }
 
-func ConvertQueries(configName string, fromQueryStats []db.QueryStats) *Queries {
+func ConvertQueries(name string, fromQueryStats []db.QueryStats) *Queries {
 	queries := &Queries{}
 	var queryStats []*Query
 
 	for _, fromStats := range fromQueryStats {
-		if fromStats.ServerID.ConfigName == configName {
+		if fromStats.ServerID.Name == name {
 			queryStats = append(queryStats, ConvertQueryStats(fromStats))
 		}
 	}
@@ -614,7 +614,7 @@ func ConvertSettings(from []db.Setting, fromServer db.PostgresServer) []*Setting
 
 	for _, fromSetting := range from {
 		// filter to settings on the same server
-		if fromSetting.ServerID.ConfigName == fromServer.ServerID.ConfigName {
+		if fromSetting.ServerID.Name == fromServer.ServerID.Name {
 			toSetting := &Setting{
 				Name:           fromSetting.Name,
 				Value:          fromSetting.Value,

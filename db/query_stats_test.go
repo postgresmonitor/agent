@@ -164,7 +164,7 @@ func TestFilterStatsMissingQuery(t *testing.T) {
 		{
 			Query: MissingQueryString,
 			ServerID: &ServerID{
-				ConfigName:    "GREEN",
+				Name:          "GREEN",
 				ConfigVarName: "GREEN_URL",
 				Database:      "foo",
 			},
@@ -176,7 +176,7 @@ func TestFilterStatsMissingQuery(t *testing.T) {
 	assert.Equal(t, 1, len(filtered))
 	stats := filtered[0]
 	assert.Equal(t, MissingQueryString, stats.Query)
-	assert.Equal(t, "GREEN", stats.ServerID.ConfigName)
+	assert.Equal(t, "GREEN", stats.ServerID.Name)
 }
 
 func TestRedact(t *testing.T) {

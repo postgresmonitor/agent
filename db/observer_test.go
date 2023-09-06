@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func SetGetPlatform(platform string) {
+	GetPlatform = func(client *Client, host string) string { return platform }
+}
+
 func TestObserver(t *testing.T) {
 	config := config.Config{}
 	postgresClient := &PostgresClient{
@@ -19,7 +23,7 @@ func TestObserver(t *testing.T) {
 		},
 		serverID: &ServerID{
 			ConfigVarName: "GREEN_URL",
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 		},
 		url: "postgres://localhost:5432/test",
 	}
@@ -57,12 +61,15 @@ func TestFindPostgresServersInvalidURL(t *testing.T) {
 func TestFindPostgresServersConfigVar(t *testing.T) {
 	os.Setenv("GREEN_URL", "postgres://localhost:5432/test")
 
+	// use heroku platform to sidestep db queries
+	SetGetPlatform("heroku")
+
 	clients := BuildPostgresClients(config.Config{})
 	assert.Equal(t, 1, len(clients))
 
 	client := clients[0]
 	assert.Equal(t, "GREEN_URL", client.serverID.ConfigVarName)
-	assert.Equal(t, "GREEN", client.serverID.ConfigName)
+	assert.Equal(t, "GREEN", client.serverID.Name)
 	assert.Equal(t, "postgres://localhost:5432/test?application_name=postgres-monitor-agent&statement_cache_mode=describe", client.url)
 	assert.NotNil(t, client.client)
 
@@ -77,7 +84,7 @@ func TestFindPostgresServersConfigVarHerokuPostgres(t *testing.T) {
 
 	client := clients[0]
 	assert.Equal(t, "HEROKU_POSTGRESQL_GREEN_URL", client.serverID.ConfigVarName)
-	assert.Equal(t, "GREEN", client.serverID.ConfigName)
+	assert.Equal(t, "GREEN", client.serverID.Name)
 	assert.Equal(t, "postgres://localhost:5432/test?application_name=postgres-monitor-agent&statement_cache_mode=describe", client.url)
 	assert.NotNil(t, client.client)
 
@@ -93,14 +100,14 @@ func TestFindPostgresServersMultipleConfigVars(t *testing.T) {
 
 	green := clients[0]
 	assert.Equal(t, "GREEN_URL", green.serverID.ConfigVarName)
-	assert.Equal(t, "GREEN", green.serverID.ConfigName)
+	assert.Equal(t, "GREEN", green.serverID.Name)
 	assert.Equal(t, "postgres://localhost:5432/test?application_name=postgres-monitor-agent&statement_cache_mode=describe", green.url)
 	assert.NotNil(t, green.client)
 	assert.Equal(t, "test", green.serverID.Database)
 
 	red := clients[1]
 	assert.Equal(t, "RED_URL", red.serverID.ConfigVarName)
-	assert.Equal(t, "RED", red.serverID.ConfigName)
+	assert.Equal(t, "RED", red.serverID.Name)
 	assert.Equal(t, "postgres://localhost:5432/test2?application_name=postgres-monitor-agent&statement_cache_mode=describe", red.url)
 	assert.NotNil(t, red.client)
 	assert.Equal(t, "test2", red.serverID.Database)

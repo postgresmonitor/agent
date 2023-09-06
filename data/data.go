@@ -56,7 +56,7 @@ func (d *Data) AddPostgresServer(newServer *db.PostgresServer) {
 	// find existing postgres server
 	for index, server := range d.PostgresServers {
 		// uniqueness by config name and config var name (ex. GREEN and GREEN_URL)
-		if server.ServerID.ConfigName == newServer.ServerID.ConfigName && server.ServerID.ConfigVarName == newServer.ServerID.ConfigVarName {
+		if server.ServerID.Name == newServer.ServerID.Name && server.ServerID.ConfigVarName == newServer.ServerID.ConfigVarName {
 			existingIndex = index
 			break
 		}

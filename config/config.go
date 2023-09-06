@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const version = "0.0.6"
+const version = "0.0.7"
 
 type Config struct {
 	APIEndpoint string
@@ -33,6 +33,8 @@ type Config struct {
 	MonitorSchema       bool
 	MonitorSettings     bool
 	MonitorAgentQueries bool
+
+	DiscoverAuroraReaderEndpoint bool
 
 	TestMode bool
 }
@@ -60,26 +62,28 @@ func New() Config {
 	monitorSchema := getEnvVarBool("MONITOR_SCHEMA", true)
 	monitorSettings := getEnvVarBool("MONITOR_SETTINGS", true)
 	monitorAgentQueries := getEnvVarBool("MONITOR_AGENT_QUERIES", false)
+	discoverAuroraReaderEndpoint := getEnvVarBool("AURORA_DISCOVER_READER_ENDPOINT", true)
 
 	return Config{
-		APIEndpoint:               endpoint,
-		APIKey:                    apiKey,
-		Environment:               environment,
-		Port:                      port,
-		UUID:                      uuid.New(),
-		Version:                   version,
-		LogLevel:                  logLevel,
-		LogPostgresLogs:           logPostgresLogs,
-		MonitorInterval:           30 * time.Second, // if data is sent more frequently, the api will drop the data
-		MonitorQueryStatsInterval: 1 * time.Minute,  // ^
-		MonitorSchemaInterval:     15 * time.Minute, // ^
-		MonitorSettingsInterval:   3 * time.Hour,    // ^
-		MonitorPgBouncer:          monitorPgBouncer,
-		MonitorQueryStats:         monitorQueryStats,
-		MonitorReplication:        monitorReplication,
-		MonitorSchema:             monitorSchema,
-		MonitorSettings:           monitorSettings,
-		MonitorAgentQueries:       monitorAgentQueries,
+		APIEndpoint:                  endpoint,
+		APIKey:                       apiKey,
+		Environment:                  environment,
+		Port:                         port,
+		UUID:                         uuid.New(),
+		Version:                      version,
+		LogLevel:                     logLevel,
+		LogPostgresLogs:              logPostgresLogs,
+		MonitorInterval:              30 * time.Second, // if data is sent more frequently, the api will drop the data
+		MonitorQueryStatsInterval:    1 * time.Minute,  // ^
+		MonitorSchemaInterval:        15 * time.Minute, // ^
+		MonitorSettingsInterval:      3 * time.Hour,    // ^
+		MonitorPgBouncer:             monitorPgBouncer,
+		MonitorQueryStats:            monitorQueryStats,
+		MonitorReplication:           monitorReplication,
+		MonitorSchema:                monitorSchema,
+		MonitorSettings:              monitorSettings,
+		MonitorAgentQueries:          monitorAgentQueries,
+		DiscoverAuroraReaderEndpoint: discoverAuroraReaderEndpoint,
 	}
 }
 

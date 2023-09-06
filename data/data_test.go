@@ -33,7 +33,7 @@ func TestAddPostgresServerNew(t *testing.T) {
 
 	postgresServer := &db.PostgresServer{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 		},
 	}
@@ -45,7 +45,7 @@ func TestAddPostgresServerNew(t *testing.T) {
 
 	server := servers[0]
 	assert.Equal(t, "GREEN_URL", server.ServerID.ConfigVarName)
-	assert.Equal(t, "GREEN", server.ServerID.ConfigName)
+	assert.Equal(t, "GREEN", server.ServerID.Name)
 }
 
 func TestAddPostgresServerExisting(t *testing.T) {
@@ -53,7 +53,7 @@ func TestAddPostgresServerExisting(t *testing.T) {
 
 	postgresServer := &db.PostgresServer{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 		},
 		MonitoredAt: int64(123456789),
@@ -63,7 +63,7 @@ func TestAddPostgresServerExisting(t *testing.T) {
 
 	postgresServer2 := &db.PostgresServer{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 		},
 		MonitoredAt: int64(1234567891),
@@ -76,7 +76,7 @@ func TestAddPostgresServerExisting(t *testing.T) {
 
 	server := servers[0]
 	assert.Equal(t, "GREEN_URL", server.ServerID.ConfigVarName)
-	assert.Equal(t, "GREEN", server.ServerID.ConfigName)
+	assert.Equal(t, "GREEN", server.ServerID.Name)
 	assert.Equal(t, int64(1234567891), server.MonitoredAt)
 }
 
@@ -84,7 +84,7 @@ func TestAddDatabase(t *testing.T) {
 	data := &Data{}
 	data.AddPostgresServer(&db.PostgresServer{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 		},
 		Version:     "10.19",
@@ -92,7 +92,7 @@ func TestAddDatabase(t *testing.T) {
 	})
 	data.AddDatabase(&db.Database{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 			Database:      "testDb",
 		},
@@ -116,7 +116,7 @@ func TestAddDatabase(t *testing.T) {
 	})
 
 	assert.Equal(t, 1, len(data.Databases))
-	assert.Equal(t, "GREEN", data.Databases[0].ServerID.ConfigName)
+	assert.Equal(t, "GREEN", data.Databases[0].ServerID.Name)
 	assert.Equal(t, "testDb", data.Databases[0].Name)
 	assert.Equal(t, 1, len(data.Databases[0].Schemas))
 	assert.Equal(t, "public", data.Databases[0].Schemas[0].Name)
@@ -126,7 +126,7 @@ func TestAddDatabase(t *testing.T) {
 	// add same db again with different schema
 	data.AddDatabase(&db.Database{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 			Database:      "testDb",
 		},
@@ -150,7 +150,7 @@ func TestAddDatabase(t *testing.T) {
 	})
 
 	assert.Equal(t, 1, len(data.Databases))
-	assert.Equal(t, "GREEN", data.Databases[0].ServerID.ConfigName)
+	assert.Equal(t, "GREEN", data.Databases[0].ServerID.Name)
 	assert.Equal(t, "testDb", data.Databases[0].Name)
 	assert.Equal(t, 1, len(data.Databases[0].Schemas))
 	assert.Equal(t, "public", data.Databases[0].Schemas[0].Name)
@@ -162,7 +162,7 @@ func TestAddReplication(t *testing.T) {
 	data := &Data{}
 	data.AddPostgresServer(&db.PostgresServer{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 		},
 		Version:     "10.19",
@@ -171,7 +171,7 @@ func TestAddReplication(t *testing.T) {
 
 	data.AddReplication(&db.Replication{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 			Database:      "testDb",
 		},
@@ -209,7 +209,7 @@ func TestAddReplication(t *testing.T) {
 
 	data.AddReplication(&db.Replication{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 			Database:      "testDb",
 		},
@@ -292,7 +292,7 @@ func TestAddErrorReport_Panic(t *testing.T) {
 func TestCopyAndReset(t *testing.T) {
 	data := &Data{}
 	serverId := &db.ServerID{
-		ConfigName:    "GREEN",
+		Name:          "GREEN",
 		ConfigVarName: "GREEN_URL",
 		Database:      "testDb",
 	}
@@ -377,14 +377,14 @@ func TestCopyAndReset(t *testing.T) {
 	metric := copiedData.Metrics[0]
 	assert.Equal(t, "metric", metric.Name)
 	assert.Equal(t, 10.0, metric.Value)
-	assert.Equal(t, "GREEN", metric.ServerID.ConfigName)
+	assert.Equal(t, "GREEN", metric.ServerID.Name)
 
 	servers := copiedData.PostgresServers
 	assert.Equal(t, 1, len(servers))
 
 	server := servers[0]
 	assert.Equal(t, "GREEN_URL", server.ServerID.ConfigVarName)
-	assert.Equal(t, "GREEN", server.ServerID.ConfigName)
+	assert.Equal(t, "GREEN", server.ServerID.Name)
 
 	assert.Equal(t, 1, len(copiedData.Replications))
 	assert.Equal(t, "follower", copiedData.Replications[0].Replica.ApplicationName)

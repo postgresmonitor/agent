@@ -3,16 +3,16 @@ package db
 import "agent/logger"
 
 type SlowQuery struct {
-	SqlErrorCode     string
-	Metadata         string
-	DurationMs       float64
-	Raw              string
-	Obfuscated       string
-	Comment          string
-	Explain          string
-	Fingerprint      string
-	ServerConfigName string
-	MeasuredAt       int64
+	SqlErrorCode string
+	Metadata     string
+	DurationMs   float64
+	Raw          string
+	Obfuscated   string
+	Comment      string
+	Explain      string
+	Fingerprint  string
+	ServerName   string
+	MeasuredAt   int64
 }
 
 // runs forever
@@ -47,7 +47,7 @@ func (o *Observer) MonitorSlowQueries() {
 			var serverID *ServerID
 			var postgresClient *PostgresClient
 			for _, client := range o.postgresClients {
-				if client.serverID.ConfigName == slowQuery.ServerConfigName {
+				if client.serverID.Name == slowQuery.ServerName {
 					serverID = client.serverID
 					postgresClient = client
 					break

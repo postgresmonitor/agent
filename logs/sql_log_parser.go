@@ -29,12 +29,12 @@ func parseSqlSyslogLine(line *SyslogLine) *ParsedLogLine {
 
 	duration, _ := strconv.ParseFloat(captureGroups["duration"], 64)
 	slowQuery := &db.SlowQuery{
-		SqlErrorCode:     captureGroups["error"],
-		Metadata:         strings.TrimSpace(captureGroups["metadata"]),
-		DurationMs:       duration,
-		Raw:              captureGroups["query"],
-		ServerConfigName: line.color,
-		MeasuredAt:       timestamp,
+		SqlErrorCode: captureGroups["error"],
+		Metadata:     strings.TrimSpace(captureGroups["metadata"]),
+		DurationMs:   duration,
+		Raw:          captureGroups["query"],
+		ServerName:   line.color,
+		MeasuredAt:   timestamp,
 	}
 
 	return &ParsedLogLine{

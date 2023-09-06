@@ -24,7 +24,7 @@ func TestNewReportRequest(t *testing.T) {
 
 	data := &data.Data{}
 	serverId := &db.ServerID{
-		ConfigName:    "GREEN",
+		Name:          "GREEN",
 		ConfigVarName: "GREEN_URL",
 		Database:      "testDb",
 	}
@@ -176,7 +176,7 @@ func TestNewReportRequestReplicas(t *testing.T) {
 	data := &data.Data{}
 	data.AddPostgresServer(&db.PostgresServer{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 		},
 		Version:     "10.19 (Ubuntu 10.19-2.pgdg20.04+1)",
@@ -184,7 +184,7 @@ func TestNewReportRequestReplicas(t *testing.T) {
 	})
 	data.AddReplication(&db.Replication{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 			Database:      "testDb",
 		},
@@ -199,7 +199,7 @@ func TestNewReportRequestReplicas(t *testing.T) {
 	})
 	data.AddReplication(&db.Replication{
 		ServerID: &db.ServerID{
-			ConfigName:    "GREEN",
+			Name:          "GREEN",
 			ConfigVarName: "GREEN_URL",
 			Database:      "testDb",
 		},

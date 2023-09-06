@@ -23,7 +23,7 @@ func (m *MonitorWorker) Start() {
 	// recover from monitor panics but log what happened
 	defer errors.DeferRecoverWithCallback(func(err error) {
 		msg := reflect.TypeOf(m.monitor).Elem().Name() + " panicked!"
-		logger.Error(msg, "server", m.postgresClient.serverID.ConfigName, "panic", err.Error())
+		logger.Error(msg, "server", m.postgresClient.serverID.Name, "panic", err.Error())
 	})
 
 	started_at := time.Now().UTC().UnixNano()
@@ -33,7 +33,7 @@ func (m *MonitorWorker) Start() {
 	duration := NanosecondsToMilliseconds(time.Now().UTC().UnixNano() - started_at)
 	if m.config.IsLogDebug() {
 		msg := reflect.TypeOf(m.monitor).Elem().Name() + " ran"
-		logger.Debug(msg, "server", m.postgresClient.serverID.ConfigName, "duration_ms", duration)
+		logger.Debug(msg, "server", m.postgresClient.serverID.Name, "duration_ms", duration)
 	}
 }
 

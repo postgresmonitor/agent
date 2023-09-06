@@ -5,17 +5,19 @@ import (
 	"agent/errors"
 	"agent/logger"
 	"agent/schedule"
+	"time"
 )
 
 type Observer struct {
-	config              config.Config
-	serverChannel       chan *PostgresServer
-	schemaChannel       chan *Database
-	settingsChannel     chan []*Setting
-	metricsChannel      chan []*Metric
-	queryStatsChannel   chan []*QueryStats
-	replicationChannel  chan *Replication
-	rawSlowQueryChannel chan *SlowQuery
+	config                 config.Config
+	startLogsServerChannel chan bool
+	serverChannel          chan *PostgresServer
+	schemaChannel          chan *Database
+	settingsChannel        chan []*Setting
+	metricsChannel         chan []*Metric
+	queryStatsChannel      chan []*QueryStats
+	replicationChannel     chan *Replication
+	rawSlowQueryChannel    chan *SlowQuery
 
 	// stateful stats for the life of the observer
 	databaseSchemaState *DatabaseSchemaState
@@ -31,7 +33,7 @@ type Observer struct {
 
 type ServerID struct {
 	// ex. GREEN
-	ConfigName string
+	Name string
 
 	// ex. GREEN_URL
 	ConfigVarName string
@@ -51,33 +53,34 @@ type PostgresServer struct {
 }
 
 // Creates a new DB observer using the present config env vars
-func NewObserver(config config.Config, serverChannel chan *PostgresServer, schemaChannel chan *Database, replicationChannel chan *Replication, metricsChannel chan []*Metric, queryStatsChannel chan []*QueryStats, settingsChannel chan []*Setting, rawSlowQueryChannel chan *SlowQuery) *Observer {
+func NewObserver(config config.Config, startLogsServerChannel chan bool, serverChannel chan *PostgresServer, schemaChannel chan *Database, replicationChannel chan *Replication, metricsChannel chan []*Metric, queryStatsChannel chan []*QueryStats, settingsChannel chan []*Setting, rawSlowQueryChannel chan *SlowQuery) *Observer {
 	postgresClients := BuildPostgresClients(config)
 
 	if len(postgresClients) == 0 {
 		logger.Error("No Postgres servers were found")
 	} else {
 		for _, client := range postgresClients {
-			logger.Info("Monitoring Postgres server", "configName", client.serverID.ConfigName)
+			logger.Info("Monitoring Postgres server", "name", client.serverID.Name)
 		}
 	}
 
 	return &Observer{
-		config:              config,
-		serverChannel:       serverChannel,
-		schemaChannel:       schemaChannel,
-		settingsChannel:     settingsChannel,
-		replicationChannel:  replicationChannel,
-		queryStatsChannel:   queryStatsChannel,
-		metricsChannel:      metricsChannel,
-		rawSlowQueryChannel: rawSlowQueryChannel,
-		databaseSchemaState: &DatabaseSchemaState{},
-		databaseStatsState:  &DatabaseStatsState{},
-		pgBouncerStatsState: &PgBouncerStatsState{},
-		queryStatsState:     &QueryStatsState{},
-		explainer:           &Explainer{},
-		obfuscator:          &Obfuscator{},
-		postgresClients:     postgresClients,
+		config:                 config,
+		startLogsServerChannel: startLogsServerChannel,
+		serverChannel:          serverChannel,
+		schemaChannel:          schemaChannel,
+		settingsChannel:        settingsChannel,
+		replicationChannel:     replicationChannel,
+		queryStatsChannel:      queryStatsChannel,
+		metricsChannel:         metricsChannel,
+		rawSlowQueryChannel:    rawSlowQueryChannel,
+		databaseSchemaState:    &DatabaseSchemaState{},
+		databaseStatsState:     &DatabaseStatsState{},
+		pgBouncerStatsState:    &PgBouncerStatsState{},
+		queryStatsState:        &QueryStatsState{},
+		explainer:              &Explainer{},
+		obfuscator:             &Obfuscator{},
+		postgresClients:        postgresClients,
 	}
 }
 
@@ -119,6 +122,9 @@ func (o *Observer) Start() {
 	}
 
 	go o.MonitorSlowQueries()
+
+	// sleep so the main thread doesn't exit
+	time.Sleep(1 * time.Hour * 24 * 30 * 12)
 }
 
 func (o *Observer) BootstrapMetatdataAndSchemas() {
@@ -143,6 +149,11 @@ func (o *Observer) BootstrapMetatdataAndSchemas() {
 				serverChannel: o.serverChannel,
 			},
 		).Start()
+
+		// if the current platform requires a log server then start one
+		if PlatformRequiresLogServer(postgresClient.platform) {
+			o.startLogsServerChannel <- true
+		}
 
 		// bootstrap schema as well to ensure that we have delta metrics
 		// set up correctly for database schemas with two polling intervals
