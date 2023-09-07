@@ -29,6 +29,8 @@ type Observer struct {
 	obfuscator *Obfuscator
 
 	postgresClients []*PostgresClient
+
+	startedLogServer bool
 }
 
 type ServerID struct {
@@ -81,6 +83,7 @@ func NewObserver(config config.Config, startLogsServerChannel chan bool, serverC
 		explainer:              &Explainer{},
 		obfuscator:             &Obfuscator{},
 		postgresClients:        postgresClients,
+		startedLogServer:       false,
 	}
 }
 
@@ -151,8 +154,9 @@ func (o *Observer) BootstrapMetatdataAndSchemas() {
 		).Start()
 
 		// if the current platform requires a log server then start one
-		if PlatformRequiresLogServer(postgresClient.platform) {
+		if !o.startedLogServer && PlatformRequiresLogServer(postgresClient.platform) {
 			o.startLogsServerChannel <- true
+			o.startedLogServer = true
 		}
 
 		// bootstrap schema as well to ensure that we have delta metrics
