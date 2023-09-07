@@ -1,0 +1,6 @@
+.git
+.env
+.DS_STORE
+.DS_Store
+.gitignore
+.vscode/
