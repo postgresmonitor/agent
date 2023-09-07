@@ -60,7 +60,7 @@ func NewObserver(config config.Config, startLogsServerChannel chan bool, serverC
 		logger.Error("No Postgres servers were found")
 	} else {
 		for _, client := range postgresClients {
-			logger.Info("Monitoring Postgres server", "name", client.serverID.Name)
+			logger.Info("Monitoring Postgres server", "name", client.serverID.Name, "platform", client.platform)
 		}
 	}
 
