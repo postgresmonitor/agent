@@ -121,6 +121,10 @@ func NewPostgresClient(config config.Config, configVar []string) *PostgresClient
 	url += "&statement_cache_mode=describe" // don't use prepared statements since pgbouncer doesn't support it
 
 	sqlClient := NewClient(config, url)
+	if sqlClient.conn == nil {
+		return nil
+	}
+
 	platform := GetPlatform(sqlClient, host)
 
 	name := strings.ReplaceAll(varName, "_URL", "")
@@ -191,6 +195,7 @@ func NewConn(dbURL string, testPing bool) *sql.DB {
 	// test connection - doesn't work with pgbouncer so make it configurable
 	if testPing {
 		if err := conn.Ping(); err != nil {
+			defer conn.Close()
 			logger.Error("Unable to connect to database", "err", err)
 			return nil
 		}
