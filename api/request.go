@@ -186,10 +186,11 @@ type Index struct {
 }
 
 type Agent struct {
-	UUID    string   `json:"uuid"`
-	Version string   `json:"version"`
-	Stats   *Stats   `json:"stats,omitempty"`
-	Errors  []*Error `json:"errors,omitempty"`
+	UUID         string   `json:"uuid"`
+	Version      string   `json:"version"`
+	Stats        *Stats   `json:"stats,omitempty"`
+	Errors       []*Error `json:"errors,omitempty"`
+	HostPlatform string   `json:"host_platform,omitempty"`
 }
 
 type Stats struct {
@@ -253,10 +254,11 @@ func NewReportRequest(config config.Config, data *data.Data, reportedAt int64, s
 		LogTestMessageReceivedAt: data.LogTestMessageReceivedAt,
 		ReportedAt:               reportedAt,
 		Agent: Agent{
-			UUID:    config.UUID.String(),
-			Version: config.Version,
-			Stats:   ConvertStats(stats),
-			Errors:  ConvertErrors(data.Errors),
+			UUID:         config.UUID.String(),
+			Version:      config.Version,
+			Stats:        ConvertStats(stats),
+			Errors:       ConvertErrors(data.Errors),
+			HostPlatform: config.AgentHostPlatform,
 		},
 	}
 }

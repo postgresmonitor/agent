@@ -32,3 +32,15 @@ func TestGetEnvVarBool(t *testing.T) {
 
 	os.Unsetenv("FOO")
 }
+
+func TestGetAgentHostPlatformHeroku(t *testing.T) {
+	os.Setenv("DYNO", "bar-service")
+	assert.Equal(t, HerokuAgentHostPlatform, getAgentHostPlatform())
+	os.Unsetenv("DYNO")
+}
+
+func TestGetAgentHostPlatformECS(t *testing.T) {
+	os.Setenv("ECS_CONTAINER_METADATA_URI", "foo-uri")
+	assert.Equal(t, ECSAgentHostPlatform, getAgentHostPlatform())
+	os.Unsetenv("ECS_CONTAINER_METADATA_URI")
+}

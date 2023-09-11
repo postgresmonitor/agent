@@ -11,13 +11,19 @@ import (
 
 const version = "0.0.7"
 
+const (
+	ECSAgentHostPlatform    = "aws_ecs"
+	HerokuAgentHostPlatform = "heroku"
+)
+
 type Config struct {
-	APIEndpoint string
-	APIKey      string
-	Environment string // development vs production
-	Port        string
-	UUID        uuid.UUID
-	Version     string
+	APIEndpoint       string
+	APIKey            string
+	Environment       string // development vs production
+	Port              string
+	AgentHostPlatform string
+	UUID              uuid.UUID
+	Version           string
 
 	LogLevel        string
 	LogPostgresLogs bool
@@ -69,6 +75,7 @@ func New() Config {
 		APIKey:                       apiKey,
 		Environment:                  environment,
 		Port:                         port,
+		AgentHostPlatform:            getAgentHostPlatform(),
 		UUID:                         uuid.New(),
 		Version:                      version,
 		LogLevel:                     logLevel,
@@ -119,4 +126,15 @@ func getEnvVarBool(name string, defaultValue bool) bool {
 		return false
 	}
 	return valueBool
+}
+
+// use var form for testing
+func getAgentHostPlatform() string {
+	if os.Getenv("DYNO") != "" {
+		return HerokuAgentHostPlatform
+	} else if os.Getenv("ECS_CONTAINER_METADATA_URI") != "" || os.Getenv("ECS_CONTAINER_METADATA_URI_V4") != "" || os.Getenv("ECS_AGENT_URI") != "" {
+		return ECSAgentHostPlatform
+	} else {
+		return ""
+	}
 }
