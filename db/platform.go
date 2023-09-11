@@ -70,7 +70,11 @@ func HasAuroraStatUtilsAvailableExtension(client *Client) bool {
 
 // test if host ends with rds.amazonaws.com and if not an aurora db
 func IsRDSPlatform(client *Client, host string) bool {
-	return strings.HasSuffix(host, "rds.amazonaws.com") && !IsAuroraPlatform(client)
+	return isRDSHost(host) && !IsAuroraPlatform(client)
+}
+
+func isRDSHost(host string) bool {
+	return strings.HasSuffix(host, "rds.amazonaws.com")
 }
 
 func FindAuroraInstanceId(postgresClient *PostgresClient) string {

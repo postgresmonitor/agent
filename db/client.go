@@ -120,6 +120,11 @@ func NewPostgresClient(config config.Config, configVar []string) *PostgresClient
 	url += "application_name=postgres-monitor-agent"
 	url += "&statement_cache_mode=describe" // don't use prepared statements since pgbouncer doesn't support it
 
+	// ensure ssl to aws rds & aurora works
+	if strings.Contains(url, "sslmode=") && isRDSHost(host) {
+		url += "&sslrootcert=config/files/rds-global-bundle.pem"
+	}
+
 	sqlClient := NewClient(config, url)
 	if sqlClient.conn == nil {
 		return nil
