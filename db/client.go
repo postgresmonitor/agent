@@ -70,13 +70,16 @@ func BuildPostgresClients(config config.Config) []*PostgresClient {
 		postgresClient := NewPostgresClient(config, configVar)
 		if postgresClient != nil {
 			postgresClients = append(postgresClients, postgresClient)
+		}
+	}
 
-			// if an aurora cluster url then also add a postgres client for the reader endpoint
-			if config.DiscoverAuroraReaderEndpoint && postgresClient.isAuroraPlatform {
-				readerPostgresClient := BuildDiscoveredAuroraReaderClient(config, configVars, configVar[0], postgresClient)
-				if readerPostgresClient != nil {
-					postgresClients = append(postgresClients, readerPostgresClient)
-				}
+	// add aurora reader clients after generating all env var clients to ensure a dupe reader client isn't added
+	for _, postgresClient := range postgresClients {
+		// if an aurora cluster url then also add a postgres client for the reader endpoint
+		if config.DiscoverAuroraReaderEndpoint && postgresClient.isAuroraPlatform {
+			readerPostgresClient := BuildDiscoveredAuroraReaderClient(config, postgresClient.serverID.ConfigVarName, postgresClients, postgresClient)
+			if readerPostgresClient != nil {
+				postgresClients = append(postgresClients, readerPostgresClient)
 			}
 		}
 	}
@@ -268,7 +271,7 @@ func ArePostgresURLsEqual(url string, otherURL string) bool {
 	return url == otherURL
 }
 
-func BuildDiscoveredAuroraReaderClient(config config.Config, configVars [][]string, envVarName string, writerPostgresClient *PostgresClient) *PostgresClient {
+func BuildDiscoveredAuroraReaderClient(config config.Config, envVarName string, existingPostgresClients []*PostgresClient, writerPostgresClient *PostgresClient) *PostgresClient {
 	if !IsAuroraClusterWriterHost(writerPostgresClient.host) {
 		return nil
 	}
@@ -276,8 +279,8 @@ func BuildDiscoveredAuroraReaderClient(config config.Config, configVars [][]stri
 	readerURL := GenerateAuroraClusterReaderURL(writerPostgresClient.url)
 	// don't add reader host if the host is already configured through env vars
 	var exists bool
-	for _, existingConfigVar := range configVars {
-		if ArePostgresURLsEqual(readerURL, existingConfigVar[1]) {
+	for _, postgresClient := range existingPostgresClients {
+		if ArePostgresURLsEqual(readerURL, postgresClient.url) {
 			exists = true
 		}
 	}
@@ -289,6 +292,13 @@ func BuildDiscoveredAuroraReaderClient(config config.Config, configVars [][]stri
 
 		if readerPostgresClient == nil {
 			return nil
+		}
+
+		// don't add reader if instance name already exists in existing clients
+		for _, postgresClient := range existingPostgresClients {
+			if postgresClient.serverID.Name == readerPostgresClient.serverID.Name {
+				return nil
+			}
 		}
 
 		// make sure the reader's instance id isn't the same as the writer's instance id

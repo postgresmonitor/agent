@@ -2,6 +2,7 @@ package agent
 
 import (
 	"agent/api"
+	"agent/aws"
 	"agent/config"
 	"agent/data"
 	"agent/db"
@@ -20,38 +21,42 @@ import (
 const maxBufferedRequests = 10
 
 type Agent struct {
-	config                 config.Config
-	data                   *data.Data
-	requests               *deque.Deque[*api.ReportRequest]
-	startLogsServerChannel chan bool
-	logMetricChannel       chan data.LogMetrics
-	logTestChannel         chan string
-	serverChannel          chan *db.PostgresServer
-	databaseChannel        chan *db.Database
-	replicationChannel     chan *db.Replication
-	metricsChannel         chan []*db.Metric
-	queryStatsChannel      chan []*db.QueryStats
-	settingsChannel        chan []*db.Setting
-	rawSlowQueryChannel    chan *db.SlowQuery
-	stats                  *util.Stats
+	config                  config.Config
+	data                    *data.Data
+	requests                *deque.Deque[*api.ReportRequest]
+	startLogsServerChannel  chan bool
+	logMetricChannel        chan data.LogMetrics
+	logTestChannel          chan string
+	serverChannel           chan *db.PostgresServer
+	databaseChannel         chan *db.Database
+	replicationChannel      chan *db.Replication
+	metricsChannel          chan []*db.Metric
+	queryStatsChannel       chan []*db.QueryStats
+	settingsChannel         chan []*db.Setting
+	rawSlowQueryChannel     chan *db.SlowQuery
+	awsInstanceFoundChannel chan *aws.RDSInstanceFoundEvent
+	awsRDSMetricsChannel    chan *aws.RDSInstanceMetrics
+	stats                   *util.Stats
 }
 
 func New(config config.Config) *Agent {
 	return &Agent{
-		config:                 config,
-		data:                   &data.Data{},
-		requests:               deque.New[*api.ReportRequest](maxBufferedRequests, maxBufferedRequests),
-		startLogsServerChannel: make(chan bool, 1),
-		logMetricChannel:       make(chan data.LogMetrics, 50),
-		logTestChannel:         make(chan string, 10),
-		serverChannel:          make(chan *db.PostgresServer, 25),
-		databaseChannel:        make(chan *db.Database, 25),
-		replicationChannel:     make(chan *db.Replication, 25),
-		metricsChannel:         make(chan []*db.Metric, 25),
-		queryStatsChannel:      make(chan []*db.QueryStats, 25),
-		settingsChannel:        make(chan []*db.Setting, 25),
-		rawSlowQueryChannel:    make(chan *db.SlowQuery, 100),
-		stats:                  &util.Stats{},
+		config:                  config,
+		data:                    &data.Data{},
+		requests:                deque.New[*api.ReportRequest](maxBufferedRequests, maxBufferedRequests),
+		startLogsServerChannel:  make(chan bool, 1),
+		logMetricChannel:        make(chan data.LogMetrics, 50),
+		logTestChannel:          make(chan string, 10),
+		serverChannel:           make(chan *db.PostgresServer, 25),
+		databaseChannel:         make(chan *db.Database, 25),
+		replicationChannel:      make(chan *db.Replication, 25),
+		metricsChannel:          make(chan []*db.Metric, 25),
+		queryStatsChannel:       make(chan []*db.QueryStats, 25),
+		settingsChannel:         make(chan []*db.Setting, 25),
+		rawSlowQueryChannel:     make(chan *db.SlowQuery, 100),
+		awsInstanceFoundChannel: make(chan *aws.RDSInstanceFoundEvent, 10),
+		awsRDSMetricsChannel:    make(chan *aws.RDSInstanceMetrics, 10),
+		stats:                   &util.Stats{},
 	}
 }
 
@@ -64,6 +69,10 @@ func (a *Agent) Run() {
 	// report every 60 seconds with some initial jitter delay to smooth out requests
 	delayJitter := time.Duration(rand.Intn(30)) * time.Second
 	go schedule.Schedule(a.sendRequest, 60*time.Second, delayJitter)
+
+	if a.config.MonitorCloudwatchMetrics {
+		go a.newCloudwatchObserver().Run()
+	}
 
 	// doesn't return and runs in main thread
 	a.startPostgresObserver()
@@ -106,7 +115,11 @@ func (a *Agent) startPostgresObserver() {
 }
 
 func (a *Agent) newObserver() *db.Observer {
-	return db.NewObserver(a.config, a.startLogsServerChannel, a.serverChannel, a.databaseChannel, a.replicationChannel, a.metricsChannel, a.queryStatsChannel, a.settingsChannel, a.rawSlowQueryChannel)
+	return db.NewObserver(a.config, a.startLogsServerChannel, a.serverChannel, a.databaseChannel, a.replicationChannel, a.metricsChannel, a.queryStatsChannel, a.settingsChannel, a.rawSlowQueryChannel, a.awsInstanceFoundChannel)
+}
+
+func (a *Agent) newCloudwatchObserver() *aws.CloudwatchObserver {
+	return aws.NewCloudwatchObserver(a.config, a.awsInstanceFoundChannel, a.awsRDSMetricsChannel)
 }
 
 // runs forever
@@ -143,6 +156,8 @@ func (a *Agent) updateDataChannels() {
 			a.data.AddQueryStats(stats)
 		case err := <-errors.ErrorsChannel:
 			a.data.AddErrorReport(err)
+		case metrics := <-a.awsRDSMetricsChannel:
+			a.data.AddRDSMetrics(metrics)
 		}
 	}
 }

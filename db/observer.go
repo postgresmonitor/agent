@@ -1,6 +1,7 @@
 package db
 
 import (
+	"agent/aws"
 	"agent/config"
 	"agent/errors"
 	"agent/logger"
@@ -55,7 +56,7 @@ type PostgresServer struct {
 }
 
 // Creates a new DB observer using the present config env vars
-func NewObserver(config config.Config, startLogsServerChannel chan bool, serverChannel chan *PostgresServer, schemaChannel chan *Database, replicationChannel chan *Replication, metricsChannel chan []*Metric, queryStatsChannel chan []*QueryStats, settingsChannel chan []*Setting, rawSlowQueryChannel chan *SlowQuery) *Observer {
+func NewObserver(config config.Config, startLogsServerChannel chan bool, serverChannel chan *PostgresServer, schemaChannel chan *Database, replicationChannel chan *Replication, metricsChannel chan []*Metric, queryStatsChannel chan []*QueryStats, settingsChannel chan []*Setting, rawSlowQueryChannel chan *SlowQuery, awsInstanceDiscoveredChannel chan *aws.RDSInstanceFoundEvent) *Observer {
 	postgresClients := BuildPostgresClients(config)
 
 	if len(postgresClients) == 0 {
@@ -63,6 +64,14 @@ func NewObserver(config config.Config, startLogsServerChannel chan bool, serverC
 	} else {
 		for _, client := range postgresClients {
 			logger.Info("Monitoring Postgres server", "name", client.serverID.Name, "platform", client.platform)
+
+			// notify cloudwatch observer
+			if config.MonitorCloudwatchMetrics && (client.isAuroraPlatform || client.isRDSPlatform) {
+				awsInstanceDiscoveredChannel <- &aws.RDSInstanceFoundEvent{
+					InstanceID: client.serverID.Name,
+					IsAurora:   client.isAuroraPlatform,
+				}
+			}
 		}
 	}
 

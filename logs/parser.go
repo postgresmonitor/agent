@@ -3,7 +3,6 @@ package logs
 import (
 	"agent/db"
 	"strings"
-	"time"
 )
 
 const appPostgres = "app postgres."
@@ -98,14 +97,4 @@ func parseLogLine(line string) []*ParsedLogLine {
 	}
 
 	return parsedLogLines
-}
-
-// Parses 2022-03-24T23:59:31+00:00 into a unix timestamp
-func parseTimestamp(timeStr string) int64 {
-	parsed, err := time.Parse(time.RFC3339, timeStr)
-	if err != nil {
-		parsed = time.Now() // fallback to now
-	}
-
-	return parsed.Unix()
 }

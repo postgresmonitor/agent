@@ -1,6 +1,9 @@
 package util
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 // round to 2 decimal places
 func Round(value float64) float64 {
@@ -32,4 +35,18 @@ func HitPercent(hit float64, read float64) float64 {
 	} else {
 		return Round4(hit / (total))
 	}
+}
+
+func ParseTimestampToUnix(timestamp string) int64 {
+	return ParseTimestampToTime(timestamp).Unix()
+}
+
+// Parses 2022-03-24T23:59:31+00:00 into a time object
+func ParseTimestampToTime(timestamp string) time.Time {
+	parsed, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		parsed = time.Now() // fallback to now
+	}
+
+	return parsed
 }

@@ -28,17 +28,20 @@ type Config struct {
 	LogLevel        string
 	LogPostgresLogs bool
 
-	MonitorInterval           time.Duration
-	MonitorSchemaInterval     time.Duration
-	MonitorSettingsInterval   time.Duration
-	MonitorQueryStatsInterval time.Duration
+	MonitorCloudwatchMetricsInterval time.Duration
+	MonitorCloudwatchLogsInterval    time.Duration
+	MonitorInterval                  time.Duration
+	MonitorSchemaInterval            time.Duration
+	MonitorSettingsInterval          time.Duration
+	MonitorQueryStatsInterval        time.Duration
 
-	MonitorPgBouncer    bool
-	MonitorQueryStats   bool
-	MonitorReplication  bool
-	MonitorSchema       bool
-	MonitorSettings     bool
-	MonitorAgentQueries bool
+	MonitorAgentQueries      bool
+	MonitorCloudwatchMetrics bool
+	MonitorPgBouncer         bool
+	MonitorQueryStats        bool
+	MonitorReplication       bool
+	MonitorSchema            bool
+	MonitorSettings          bool
 
 	DiscoverAuroraReaderEndpoint bool
 
@@ -62,35 +65,39 @@ func New() Config {
 
 	logLevel := getEnvVar("LOG_LEVEL", "info")
 	logPostgresLogs := getEnvVarBool("LOG_POSTGRES_LOGS", false)
+	monitorAgentQueries := getEnvVarBool("MONITOR_AGENT_QUERIES", false)
+	monitorCloudwatchMetrics := getEnvVarBool("MONITOR_CLOUDWATCH_METRICS", true)
 	monitorPgBouncer := getEnvVarBool("MONITOR_PGBOUNCER", true)
 	monitorQueryStats := getEnvVarBool("MONITOR_QUERY_STATS", true)
 	monitorReplication := getEnvVarBool("MONITOR_REPLICATION", true)
 	monitorSchema := getEnvVarBool("MONITOR_SCHEMA", true)
 	monitorSettings := getEnvVarBool("MONITOR_SETTINGS", true)
-	monitorAgentQueries := getEnvVarBool("MONITOR_AGENT_QUERIES", false)
 	discoverAuroraReaderEndpoint := getEnvVarBool("AURORA_DISCOVER_READER_ENDPOINT", true)
 
 	return Config{
-		APIEndpoint:                  endpoint,
-		APIKey:                       apiKey,
-		Environment:                  environment,
-		Port:                         port,
-		AgentHostPlatform:            getAgentHostPlatform(),
-		UUID:                         uuid.New(),
-		Version:                      version,
-		LogLevel:                     logLevel,
-		LogPostgresLogs:              logPostgresLogs,
-		MonitorInterval:              30 * time.Second, // if data is sent more frequently, the api will drop the data
-		MonitorQueryStatsInterval:    1 * time.Minute,  // ^
-		MonitorSchemaInterval:        15 * time.Minute, // ^
-		MonitorSettingsInterval:      3 * time.Hour,    // ^
-		MonitorPgBouncer:             monitorPgBouncer,
-		MonitorQueryStats:            monitorQueryStats,
-		MonitorReplication:           monitorReplication,
-		MonitorSchema:                monitorSchema,
-		MonitorSettings:              monitorSettings,
-		MonitorAgentQueries:          monitorAgentQueries,
-		DiscoverAuroraReaderEndpoint: discoverAuroraReaderEndpoint,
+		APIEndpoint:                      endpoint,
+		APIKey:                           apiKey,
+		Environment:                      environment,
+		Port:                             port,
+		AgentHostPlatform:                getAgentHostPlatform(),
+		UUID:                             uuid.New(),
+		Version:                          version,
+		LogLevel:                         logLevel,
+		LogPostgresLogs:                  logPostgresLogs,
+		MonitorCloudwatchMetricsInterval: 5 * time.Minute,
+		MonitorCloudwatchLogsInterval:    1 * time.Minute,
+		MonitorInterval:                  30 * time.Second, // if data is sent more frequently, the api will drop the data
+		MonitorQueryStatsInterval:        1 * time.Minute,  // ^
+		MonitorSchemaInterval:            15 * time.Minute, // ^
+		MonitorSettingsInterval:          3 * time.Hour,    // ^
+		MonitorAgentQueries:              monitorAgentQueries,
+		MonitorCloudwatchMetrics:         monitorCloudwatchMetrics,
+		MonitorPgBouncer:                 monitorPgBouncer,
+		MonitorQueryStats:                monitorQueryStats,
+		MonitorReplication:               monitorReplication,
+		MonitorSchema:                    monitorSchema,
+		MonitorSettings:                  monitorSettings,
+		DiscoverAuroraReaderEndpoint:     discoverAuroraReaderEndpoint,
 	}
 }
 

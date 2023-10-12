@@ -1,6 +1,7 @@
 package data
 
 import (
+	"agent/aws"
 	"agent/db"
 	"agent/errors"
 	"reflect"
@@ -13,6 +14,7 @@ type LogMetrics map[string]string
 type Data struct {
 	LogMetrics               []LogMetrics
 	Metrics                  []db.Metric
+	RDSMetrics               []aws.RDSInstanceMetrics
 	PostgresServers          []db.PostgresServer
 	Databases                []db.Database
 	Replications             []db.Replication
@@ -45,6 +47,14 @@ func (d *Data) AddMetrics(metrics []*db.Metric) {
 	for _, metric := range metrics {
 		d.Metrics = append(d.Metrics, *metric)
 	}
+}
+
+func (d *Data) AddRDSMetrics(metrics *aws.RDSInstanceMetrics) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// just append new metric records - we'll aggregate them in request
+	d.RDSMetrics = append(d.RDSMetrics, *metrics)
 }
 
 func (d *Data) AddPostgresServer(newServer *db.PostgresServer) {
@@ -200,6 +210,9 @@ func (d *Data) CopyAndReset() *Data {
 	metricsCopy := make([]db.Metric, len(d.Metrics))
 	copy(metricsCopy, d.Metrics)
 
+	rdsMetricsCopy := make([]aws.RDSInstanceMetrics, len(d.RDSMetrics))
+	copy(rdsMetricsCopy, d.RDSMetrics)
+
 	postgresServersCopy := make([]db.PostgresServer, len(d.PostgresServers))
 	copy(postgresServersCopy, d.PostgresServers)
 
@@ -221,6 +234,7 @@ func (d *Data) CopyAndReset() *Data {
 	copiedData := &Data{
 		LogMetrics:               logMetricsCopy,
 		Metrics:                  metricsCopy,
+		RDSMetrics:               rdsMetricsCopy,
 		PostgresServers:          postgresServersCopy,
 		Databases:                databasesCopy,
 		Replications:             replicationsCopy,
@@ -232,6 +246,7 @@ func (d *Data) CopyAndReset() *Data {
 
 	d.LogMetrics = []LogMetrics{}
 	d.Metrics = []db.Metric{}
+	d.RDSMetrics = []aws.RDSInstanceMetrics{}
 	d.PostgresServers = []db.PostgresServer{}
 	d.Databases = []db.Database{}
 	d.Replications = []db.Replication{}

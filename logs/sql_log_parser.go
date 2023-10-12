@@ -2,6 +2,7 @@ package logs
 
 import (
 	"agent/db"
+	"agent/util"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,7 +19,7 @@ var sqlLogLineRegex = regexp.MustCompile(`sql_error_code = ` + errorRegex + meta
 // for slow queries we only care about LOG: duration ...
 // LOG: checkpoint is another format, etc
 func parseSqlSyslogLine(line *SyslogLine) *ParsedLogLine {
-	timestamp := parseTimestamp(line.timestamp)
+	timestamp := util.ParseTimestampToUnix(line.timestamp)
 
 	message := strings.TrimSpace(line.message)
 	captureGroups := matchRegexSqlMessage(message)

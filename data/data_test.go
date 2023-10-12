@@ -1,6 +1,7 @@
 package data
 
 import (
+	"agent/aws"
 	"agent/db"
 	"agent/errors"
 	"database/sql"
@@ -348,6 +349,26 @@ func TestCopyAndReset(t *testing.T) {
 		Value: "10",
 	})
 	data.AddErrorReport(&errors.ErrorReport{})
+	data.AddRDSMetrics(&aws.RDSInstanceMetrics{
+		RDSInstance: &aws.RDSInstance{
+			EnhancedMonitoringEnabled: true,
+			InstanceID:                "foo_id",
+			InstanceClass:             "instance_class",
+			MonitoringResourceId:      "resource_id",
+			IsAurora:                  true,
+		},
+		MetricResults: []aws.MetricResult{
+			{
+				MetricName: "foo_metric",
+				Datapoints: []aws.MetricDatapoint{
+					{
+						Time:  time.Now(),
+						Value: 0.01,
+					},
+				},
+			},
+		},
+	})
 
 	copiedData := data.CopyAndReset()
 
@@ -360,6 +381,7 @@ func TestCopyAndReset(t *testing.T) {
 		Settings:        []db.Setting{},
 		QueryStats:      []db.QueryStats{},
 		Errors:          []errors.ErrorReport{},
+		RDSMetrics:      []aws.RDSInstanceMetrics{},
 	}
 	assert.Equal(t, expectedEmptyData, data)
 
@@ -391,6 +413,9 @@ func TestCopyAndReset(t *testing.T) {
 	assert.Equal(t, "1.2.3.4", copiedData.Replications[0].Replicas[0].ClientAddr.String)
 
 	assert.Equal(t, 1, len(copiedData.Errors))
+
+	assert.Equal(t, "foo_id", copiedData.RDSMetrics[0].RDSInstance.InstanceID)
+	assert.Equal(t, 1, len(copiedData.RDSMetrics[0].MetricResults))
 }
 
 func buildPgTypeInterval(microseconds int64) pgtype.Interval {

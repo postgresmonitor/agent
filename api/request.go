@@ -1,6 +1,7 @@
 package api
 
 import (
+	"agent/aws"
 	"agent/config"
 	"agent/data"
 	"agent/db"
@@ -43,11 +44,12 @@ type PostgresServer struct {
 	Metrics []*Metric `json:"metrics,omitempty"`
 	Queries *Queries  `json:"queries,omitempty"`
 
-	MaxConnections int64      `json:"max_connections,omitempty"`
-	PgBouncer      *PgBouncer `json:"pg_bouncer,omitempty"`
-	Settings       []*Setting `json:"settings,omitempty"`
-	Version        string     `json:"version"`
-	MonitoredAt    int64      `json:"monitored_at"`
+	MaxConnections int64        `json:"max_connections,omitempty"`
+	PgBouncer      *PgBouncer   `json:"pg_bouncer,omitempty"`
+	RDSInstance    *RDSInstance `json:"rds_instance,omitempty"`
+	Settings       []*Setting   `json:"settings,omitempty"`
+	Version        string       `json:"version"`
+	MonitoredAt    int64        `json:"monitored_at"`
 }
 
 type PgBouncer struct {
@@ -55,10 +57,17 @@ type PgBouncer struct {
 	Version              string `json:"version,omitempty"`
 }
 
+type RDSInstance struct {
+	EnhancedMonitoringEnabled bool      `json:"enhanced_monitoring"`
+	InstanceID                string    `json:"instance_id,omitempty"`
+	InstanceClass             string    `json:"instance_class,omitempty"`
+	Metrics                   []*Metric `json:"metrics,omitempty"`
+}
+
 type Metric struct {
 	Name   string        `json:"name"`
 	Entity string        `json:"entity,omitempty"`
-	Values []MetricValue `json:"values"`
+	Values []MetricValue `json:"values,omitempty"`
 }
 
 type MetricValue struct {
@@ -250,7 +259,7 @@ type Setting struct {
 func NewReportRequest(config config.Config, data *data.Data, reportedAt int64, stats *util.Stats) ReportRequest {
 	return ReportRequest{
 		LogMetrics:               ConvertLogMetrics(data.LogMetrics),
-		PostgresServers:          ConvertPostgresServers(data.PostgresServers, data.Databases, data.Replications, data.Metrics, data.Settings, data.QueryStats),
+		PostgresServers:          ConvertPostgresServers(data.PostgresServers, data.Databases, data.Replications, data.Metrics, data.Settings, data.QueryStats, data.RDSMetrics),
 		LogTestMessageReceivedAt: data.LogTestMessageReceivedAt,
 		ReportedAt:               reportedAt,
 		Agent: Agent{
@@ -301,7 +310,7 @@ func ConvertLogMetrics(from []data.LogMetrics) []LogMetrics {
 	return to
 }
 
-func ConvertPostgresServers(fromServers []db.PostgresServer, fromDbs []db.Database, fromReplications []db.Replication, fromMetrics []db.Metric, fromSettings []db.Setting, fromQueryStats []db.QueryStats) []PostgresServer {
+func ConvertPostgresServers(fromServers []db.PostgresServer, fromDbs []db.Database, fromReplications []db.Replication, fromMetrics []db.Metric, fromSettings []db.Setting, fromQueryStats []db.QueryStats, fromRDSInstanceMetrics []aws.RDSInstanceMetrics) []PostgresServer {
 	to := []PostgresServer{}
 
 	for _, fromServer := range fromServers {
@@ -319,6 +328,9 @@ func ConvertPostgresServers(fromServers []db.PostgresServer, fromDbs []db.Databa
 				MaxServerConnections: fromServer.PgBouncer.MaxServerConnections,
 				Version:              fromServer.PgBouncer.Version,
 			}
+		}
+		if len(fromRDSInstanceMetrics) > 0 {
+			AddRDSInstance(&toServer, fromRDSInstanceMetrics)
 		}
 
 		// convert matching dbs
@@ -390,6 +402,48 @@ func ConvertMetrics(name string, fromMetrics []db.Metric) []*Metric {
 
 		metric.Values = metricValues
 		metrics = append(metrics, metric)
+	}
+
+	return metrics
+}
+
+func AddRDSInstance(server *PostgresServer, fromRDSInstanceMetrics []aws.RDSInstanceMetrics) {
+	var fromRDSInstance *aws.RDSInstanceMetrics
+
+	for _, fromRDSInstanceMetric := range fromRDSInstanceMetrics {
+		if fromRDSInstanceMetric.RDSInstance.InstanceID == server.ConfigName {
+			if (fromRDSInstanceMetric.RDSInstance.IsAurora && server.Platform == db.AuroraPlatform) || (!fromRDSInstanceMetric.RDSInstance.IsAurora && server.Platform == db.RDSPlatform) {
+				fromRDSInstance = &fromRDSInstanceMetric
+				break
+			}
+		}
+	}
+
+	if fromRDSInstance != nil {
+		server.RDSInstance = &RDSInstance{
+			EnhancedMonitoringEnabled: fromRDSInstance.RDSInstance.EnhancedMonitoringEnabled,
+			InstanceID:                fromRDSInstance.RDSInstance.InstanceID,
+			InstanceClass:             fromRDSInstance.RDSInstance.InstanceClass,
+			Metrics:                   ConvertRDSMetrics(fromRDSInstance.MetricResults),
+		}
+	}
+}
+
+func ConvertRDSMetrics(fromRDSMetrics []aws.MetricResult) []*Metric {
+	var metrics []*Metric
+
+	for _, rdsMetric := range fromRDSMetrics {
+		metric := &Metric{
+			Name: rdsMetric.MetricName,
+		}
+		var values []MetricValue
+		for _, datapoint := range rdsMetric.Datapoints {
+			values = append(values, MetricValue{Value: util.Round4(datapoint.Value), MeasuredAt: datapoint.Time.Unix()})
+		}
+		if len(values) > 0 {
+			metric.Values = values
+			metrics = append(metrics, metric)
+		}
 	}
 
 	return metrics

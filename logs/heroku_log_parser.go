@@ -1,6 +1,7 @@
 package logs
 
 import (
+	"agent/util"
 	"fmt"
 	"strings"
 )
@@ -9,7 +10,7 @@ func parseHerokuPostgresKeyValueLogLine(line *SyslogLine) *ParsedLogLine {
 	keyValues := map[string]string{}
 
 	// convert to string unix timestamp
-	keyValues["timestamp"] = fmt.Sprint(parseTimestamp(line.timestamp))
+	keyValues["timestamp"] = fmt.Sprint(util.ParseTimestampToUnix(line.timestamp))
 
 	parts := strings.Fields(line.message)
 
