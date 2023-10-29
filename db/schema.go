@@ -869,7 +869,7 @@ func (m *SchemaMonitor) FindBloat(postgresClient *PostgresClient) []*BloatResult
 							SELECT
 								schemaname, tablename, bs,
 								COALESCE(c2.relname,'?') AS iname, COALESCE(c2.reltuples,0) AS ituples, COALESCE(c2.relpages,0) AS ipages,
-								COALESCE(CEIL((c2.reltuples*(datahdr-12))/(bs-20::float)),0) AS iotta -- very rough approximation, assumes all cols
+								COALESCE(CEIL((c2.reltuples*(datahdr-12))/(bs-20::float)),0) AS iotta
 							FROM bloat_info
 							JOIN pg_class cc ON cc.relname = bloat_info.tablename
 							JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')

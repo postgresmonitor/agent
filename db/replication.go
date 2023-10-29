@@ -235,6 +235,9 @@ func (m *ReplicationMonitor) FindReplica(postgresClient *PostgresClient) *Replic
 	// TODO: ERROR:  Function pg_stat_get_wal_receiver() is currently not supported in Aurora
 	// TODO: select * from aurora_replica_status(); - includes replica_lag_in_msec, cur_replay_latency_in_usec
 	// also includes iops and cpu (of replica?)
+	if postgresClient.isAuroraPlatform {
+		return nil
+	}
 
 	// NOTE: PG 10 doesn't have sender_host available so we extract it from the conninfo
 	// PG 11 adds this field https://www.postgresql.org/docs/11/monitoring-stats.html#PG-STAT-WAL-RECEIVER-VIEW
