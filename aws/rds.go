@@ -4,16 +4,12 @@ import (
 	"agent/logger"
 	"context"
 	"os"
+	"time"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 )
-
-type RDSInstanceFoundEvent struct {
-	InstanceID string
-	IsAurora   bool
-}
 
 type RDSInstance struct {
 	EnhancedMonitoringEnabled bool
@@ -124,23 +120,7 @@ func GetRDSInstance(instanceId string) *RDSInstance {
 
 	ctx := context.Background()
 
-	var awsConfig awssdk.Config
-	var err error
-	// support config profiles
-	if os.Getenv("AWS_CONFIG_PROFILE") != "" {
-		awsConfig, err = awsconfig.LoadDefaultConfig(ctx,
-			awsconfig.WithSharedConfigProfile(os.Getenv("AWS_CONFIG_PROFILE")),
-		)
-	} else {
-		awsConfig, err = awsconfig.LoadDefaultConfig(ctx)
-	}
-
-	if err != nil {
-		logger.Error(err.Error())
-		return nil
-	}
-
-	rdsClient := rds.NewFromConfig(awsConfig)
+	rdsClient := BuildRDSClient(ctx)
 
 	input := &rds.DescribeDBInstancesInput{
 		DBInstanceIdentifier: &instanceId,
@@ -165,4 +145,74 @@ func GetRDSInstance(instanceId string) *RDSInstance {
 	}
 
 	return &rdsInstance
+}
+
+func ListRDSLogFiles(instanceId string) []string {
+	var files []string
+
+	ctx := context.Background()
+
+	rdsClient := BuildRDSClient(ctx)
+
+	// get all log files from the past five minutes
+	lastWritten := time.Now().Add(-5*time.Minute).Unix() * 1000
+
+	input := &rds.DescribeDBLogFilesInput{
+		DBInstanceIdentifier: &instanceId,
+		FileLastWritten:      lastWritten,
+	}
+
+	logFiles, err := rdsClient.DescribeDBLogFiles(ctx, input)
+	if err != nil {
+		logger.Error(err.Error())
+	} else {
+		for _, logFile := range logFiles.DescribeDBLogFiles {
+			files = append(files, *logFile.LogFileName)
+		}
+	}
+
+	return files
+}
+
+func GetRDSLogFile(instanceId string, logFileName string, marker *string) (*string, *string) {
+	ctx := context.Background()
+
+	rdsClient := BuildRDSClient(ctx)
+
+	input := &rds.DownloadDBLogFilePortionInput{
+		DBInstanceIdentifier: &instanceId,
+		LogFileName:          &logFileName,
+	}
+	if marker != nil && *marker != "" {
+		input.Marker = marker
+	}
+
+	// read last 10000 lines from log file, optionally using a marker for the next batch of lines
+	logFile, err := rdsClient.DownloadDBLogFilePortion(ctx, input)
+	if err != nil {
+		logger.Error(err.Error())
+		return nil, nil
+	} else {
+		return logFile.LogFileData, logFile.Marker
+	}
+}
+
+func BuildRDSClient(ctx context.Context) *rds.Client {
+	var awsConfig awssdk.Config
+	var err error
+	// support config profiles
+	if os.Getenv("AWS_CONFIG_PROFILE") != "" {
+		awsConfig, err = awsconfig.LoadDefaultConfig(ctx,
+			awsconfig.WithSharedConfigProfile(os.Getenv("AWS_CONFIG_PROFILE")),
+		)
+	} else {
+		awsConfig, err = awsconfig.LoadDefaultConfig(ctx)
+	}
+
+	if err != nil {
+		logger.Error(err.Error())
+		return nil
+	}
+
+	return rds.NewFromConfig(awsConfig)
 }

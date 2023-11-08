@@ -26,7 +26,7 @@ func (o *Observer) MonitorSlowQueries() {
 
 			// skip any agent query if configured to
 			if !o.config.MonitorAgentQueries && isAgentQueryComment(parsedComment.Comment) {
-				return
+				continue
 			}
 
 			slowQuery.Raw = parsedComment.Query
@@ -54,19 +54,28 @@ func (o *Observer) MonitorSlowQueries() {
 				}
 			}
 
-			// obfuscate explains since the raw explain can contain query inputs
-			explain := o.explainer.Explain(postgresClient, slowQuery)
-			if len(explain) > 0 {
-				slowQuery.Explain = o.obfuscator.ObfuscateExplain(explain)
-				// if explain is empty, then the query was already explained the last hour
-				logger.Debug("Slow Query", "duration_ms", slowQuery.DurationMs, "query", slowQuery.Raw, "obfuscated", slowQuery.Obfuscated, "fingerprint", slowQuery.Fingerprint, "explain", explain, "obfuscated_explain", slowQuery.Explain, "measured_at", slowQuery.MeasuredAt)
+			rawExplain := slowQuery.Explain
+
+			// don't explain query if explain already present - ex. from auto_explain
+			if rawExplain == "" {
+				// obfuscate explains since the raw explain can contain query inputs
+				rawExplain = o.explainer.Explain(postgresClient, slowQuery)
+				if len(rawExplain) > 0 {
+					slowQuery.Explain = o.obfuscator.ObfuscateExplain(rawExplain)
+					// if explain is empty, then the query was already explained the last hour
+				}
+			} else {
+				slowQuery.Explain = o.obfuscator.ObfuscateExplain(rawExplain)
 			}
+
+			logger.Debug("Slow Query", "duration_ms", slowQuery.DurationMs, "query", slowQuery.Raw, "obfuscated", slowQuery.Obfuscated, "fingerprint", slowQuery.Fingerprint, "explain", rawExplain, "obfuscated_explain", slowQuery.Explain, "measured_at", slowQuery.MeasuredAt)
 
 			// report slow query stats
 			slowQueryStats := &QueryStats{
 				ServerID:    serverID,
 				Fingerprint: slowQuery.Fingerprint,
 				Query:       slowQuery.Obfuscated,
+				Comment:     slowQuery.Comment,
 				Explain:     slowQuery.Explain,
 				Calls:       1,
 				TotalTime:   slowQuery.DurationMs,
@@ -75,7 +84,7 @@ func (o *Observer) MonitorSlowQueries() {
 				MeasuredAt:  slowQuery.MeasuredAt,
 			}
 			select {
-			case o.queryStatsChannel <- []*QueryStats{slowQueryStats}:
+			case o.dataChannel <- []*QueryStats{slowQueryStats}:
 				// sent
 			default:
 				logger.Warn("Dropping query stats: channel buffer full")

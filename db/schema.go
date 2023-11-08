@@ -204,7 +204,7 @@ func (o *Observer) MonitorSchemas() {
 			o.config,
 			postgresClient,
 			&SchemaMonitor{
-				schemaChannel:       o.schemaChannel,
+				dataChannel:         o.dataChannel,
 				databaseSchemaState: o.databaseSchemaState,
 			},
 		).Start()
@@ -212,7 +212,7 @@ func (o *Observer) MonitorSchemas() {
 }
 
 type SchemaMonitor struct {
-	schemaChannel       chan *Database
+	dataChannel         chan interface{}
 	databaseSchemaState *DatabaseSchemaState
 }
 
@@ -305,7 +305,7 @@ func (m *SchemaMonitor) Run(postgresClient *PostgresClient) {
 	// since the first iteration won't have the correct deltas
 	if previousDatabase != nil {
 		select {
-		case m.schemaChannel <- deltaDatabase:
+		case m.dataChannel <- deltaDatabase:
 			// sent
 		default:
 			logger.Warn("Dropping schema database: channel buffer full")

@@ -9,7 +9,7 @@ import (
 )
 
 type MetadataMonitor struct {
-	serverChannel chan *PostgresServer
+	dataChannel chan interface{}
 }
 
 func (m *MetadataMonitor) Run(postgresClient *PostgresClient) {
@@ -39,7 +39,7 @@ func (m *MetadataMonitor) Run(postgresClient *PostgresClient) {
 	}
 
 	select {
-	case m.serverChannel <- server:
+	case m.dataChannel <- server:
 		// sent
 	default:
 		logger.Warn("Dropping server: channel buffer full")

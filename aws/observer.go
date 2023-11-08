@@ -2,6 +2,7 @@ package aws
 
 import (
 	"agent/config"
+	"agent/db"
 	"agent/logger"
 	"agent/schedule"
 	"agent/util"
@@ -74,13 +75,15 @@ var AuroraMetrics = []string{
 	"WriteThroughput",
 }
 
-type CloudwatchObserver struct {
+type Observer struct {
 	config                       config.Config
-	awsInstanceDiscoveredChannel chan *RDSInstanceFoundEvent
-	awsRDSMetricsChannel         chan *RDSInstanceMetrics
+	awsInstanceDiscoveredChannel chan *db.RDSInstanceFoundEvent
+	dataChannel                  chan interface{}
+	slowQueryChannel             chan *db.SlowQuery
+	awsLogFiles                  []*AWSLogFile
 	rdsInstances                 []*RDSInstance
 	mu                           sync.Mutex // to protect rdsInstances
-	scheduledMonitorMetrics      bool
+	scheduledMonitors            bool
 }
 
 type RDSInstanceMetrics struct {
@@ -98,22 +101,30 @@ type MetricDatapoint struct {
 	Value float64
 }
 
-func NewCloudwatchObserver(config config.Config, awsInstanceDiscoveredChannel chan *RDSInstanceFoundEvent, awsRDSMetricsChannel chan *RDSInstanceMetrics) *CloudwatchObserver {
-	return &CloudwatchObserver{
+type AWSLogFile struct {
+	InstanceID  string
+	LogFileName string
+	Marker      string
+}
+
+func NewObserver(config config.Config, awsInstanceDiscoveredChannel chan *db.RDSInstanceFoundEvent, dataChannel chan interface{}, slowQueryChannel chan *db.SlowQuery) *Observer {
+	return &Observer{
 		config:                       config,
 		awsInstanceDiscoveredChannel: awsInstanceDiscoveredChannel,
-		awsRDSMetricsChannel:         awsRDSMetricsChannel,
+		dataChannel:                  dataChannel,
+		slowQueryChannel:             slowQueryChannel,
 		rdsInstances:                 make([]*RDSInstance, 0),
+		awsLogFiles:                  make([]*AWSLogFile, 0),
 		mu:                           sync.Mutex{},
 	}
 }
 
 // Starts go routines to monitor cloudwatch metrics and logs
-func (o *CloudwatchObserver) Run() {
+func (o *Observer) Run() {
 	go o.WatchForRDSInstances()
 }
 
-func (o *CloudwatchObserver) WatchForRDSInstances() {
+func (o *Observer) WatchForRDSInstances() {
 	for {
 		select {
 		case event := <-o.awsInstanceDiscoveredChannel:
@@ -122,33 +133,39 @@ func (o *CloudwatchObserver) WatchForRDSInstances() {
 	}
 }
 
-func (o *CloudwatchObserver) TrackRDSInstance(event *RDSInstanceFoundEvent) {
+func (o *Observer) TrackRDSInstance(event *db.RDSInstanceFoundEvent) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	logger.Info("CloudwatchObserver: tracking RDS Instance", "instance_id", event.InstanceID, "is_aurora", event.IsAurora)
+	logger.Info("Observer: tracking RDS Instance", "instance_id", event.InstanceID, "is_aurora", event.IsAurora)
 
 	rdsInstance := GetRDSInstance(event.InstanceID)
 	rdsInstance.IsAurora = event.IsAurora
 
 	o.rdsInstances = append(o.rdsInstances, rdsInstance)
 
-	if o.config.MonitorCloudwatchMetrics && !o.scheduledMonitorMetrics {
-		go schedule.ScheduleAndRunNow(o.MonitorCloudwatchMetrics, o.config.MonitorCloudwatchMetricsInterval)
-		go schedule.ScheduleAndRunNow(o.MonitorCloudwatchLogs, o.config.MonitorCloudwatchLogsInterval)
+	if !o.scheduledMonitors {
+		if o.config.MonitorCloudwatchMetrics {
+			go schedule.ScheduleAndRunNow(o.MonitorCloudwatchMetrics, o.config.MonitorCloudwatchMetricsInterval)
+			go schedule.ScheduleAndRunNow(o.MonitorCloudwatchLogs, o.config.MonitorCloudwatchLogsInterval)
+		}
 
-		o.scheduledMonitorMetrics = true
+		if o.config.MonitorAWSLogs {
+			go schedule.ScheduleAndRunNow(o.MonitorAWSLogs, o.config.MonitorAWSLogsInterval)
+		}
+
+		o.scheduledMonitors = true
 	}
 }
 
-func (o *CloudwatchObserver) MonitorCloudwatchMetrics() {
+func (o *Observer) MonitorCloudwatchMetrics() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	for _, rdsInstance := range o.rdsInstances {
 		metricResults := o.FetchMetrics(rdsInstance)
 		if len(metricResults) > 0 {
-			o.awsRDSMetricsChannel <- &RDSInstanceMetrics{
+			o.dataChannel <- &RDSInstanceMetrics{
 				RDSInstance:   rdsInstance,
 				MetricResults: metricResults,
 			}
@@ -156,8 +173,8 @@ func (o *CloudwatchObserver) MonitorCloudwatchMetrics() {
 	}
 }
 
-func (o *CloudwatchObserver) FetchMetrics(rdsInstance *RDSInstance) []MetricResult {
-	logger.Debug("CloudwatchObserver: fetching metrics", "instance_id", rdsInstance.InstanceID)
+func (o *Observer) FetchMetrics(rdsInstance *RDSInstance) []MetricResult {
+	logger.Debug("AWS Observer: fetching metrics", "instance_id", rdsInstance.InstanceID)
 
 	ctx := context.Background()
 
@@ -216,7 +233,7 @@ func (o *CloudwatchObserver) FetchMetrics(rdsInstance *RDSInstance) []MetricResu
 }
 
 // https://github.com/awsdocs/aws-doc-sdk-examples/blob/main/gov2/cloudwatch/GetMetricData/GetMetricDatav2.go
-func (o *CloudwatchObserver) BuiltMetricDataQueries(rdsInstance *RDSInstance) []types.MetricDataQuery {
+func (o *Observer) BuiltMetricDataQueries(rdsInstance *RDSInstance) []types.MetricDataQuery {
 	var metricDataQueries []types.MetricDataQuery
 
 	var metricNames []string
@@ -249,7 +266,7 @@ func (o *CloudwatchObserver) BuiltMetricDataQueries(rdsInstance *RDSInstance) []
 	return metricDataQueries
 }
 
-func (o *CloudwatchObserver) MonitorCloudwatchLogs() {
+func (o *Observer) MonitorCloudwatchLogs() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -258,7 +275,7 @@ func (o *CloudwatchObserver) MonitorCloudwatchLogs() {
 		if rdsInstance.EnhancedMonitoringEnabled {
 			metricResults := o.FetchRDSOSMetrics(rdsInstance)
 			if len(metricResults) > 0 {
-				o.awsRDSMetricsChannel <- &RDSInstanceMetrics{
+				o.dataChannel <- &RDSInstanceMetrics{
 					RDSInstance:   rdsInstance,
 					MetricResults: metricResults,
 				}
@@ -267,8 +284,8 @@ func (o *CloudwatchObserver) MonitorCloudwatchLogs() {
 	}
 }
 
-func (o *CloudwatchObserver) FetchRDSOSMetrics(rdsInstance *RDSInstance) []MetricResult {
-	logger.Debug("CloudwatchObserver: fetching rds os metrics", "instance_id", rdsInstance.InstanceID)
+func (o *Observer) FetchRDSOSMetrics(rdsInstance *RDSInstance) []MetricResult {
+	logger.Debug("AWS Observer: fetching rds os metrics", "instance_id", rdsInstance.InstanceID)
 
 	ctx := context.Background()
 
@@ -308,7 +325,7 @@ func (o *CloudwatchObserver) FetchRDSOSMetrics(rdsInstance *RDSInstance) []Metri
 	return []MetricResult{}
 }
 
-func (o *CloudwatchObserver) ConvertRDSOSLogEventIntoMetrics(message string) []MetricResult {
+func (o *Observer) ConvertRDSOSLogEventIntoMetrics(message string) []MetricResult {
 	var metricResults []MetricResult
 
 	event := RDSOSMetricsEvent{}
@@ -404,7 +421,7 @@ func (o *CloudwatchObserver) ConvertRDSOSLogEventIntoMetrics(message string) []M
 	return metricResults
 }
 
-func (o *CloudwatchObserver) BuildMetricResult(name string, timestamp time.Time, value float64) MetricResult {
+func (o *Observer) BuildMetricResult(name string, timestamp time.Time, value float64) MetricResult {
 	return MetricResult{
 		MetricName: name,
 		Datapoints: []MetricDatapoint{
@@ -414,4 +431,74 @@ func (o *CloudwatchObserver) BuildMetricResult(name string, timestamp time.Time,
 			},
 		},
 	}
+}
+
+func (o *Observer) MonitorAWSLogs() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	for _, rdsInstance := range o.rdsInstances {
+		logFileNames := ListRDSLogFiles(rdsInstance.InstanceID)
+		for _, logFileName := range logFileNames {
+
+			cachedLogFile := o.FindOrCreateCachedAWSLogFile(rdsInstance.InstanceID, logFileName)
+			marker := cachedLogFile.Marker
+
+			logFile, newMarker := GetRDSLogFile(rdsInstance.InstanceID, logFileName, &marker)
+
+			if logFile != nil {
+				cachedLogFile.Marker = *newMarker
+
+				if len(*logFile) > 0 {
+					// TODO: remove this or make debug
+					logger.Info("RDS Log File", "instanceID", rdsInstance.InstanceID, "fileName", logFileName, "len", len(*logFile), "marker", *newMarker)
+
+					rdsLogLines := ParseRDSLogFile(*logFile)
+					o.ProcessRDSLogLines(rdsLogLines, rdsInstance.InstanceID)
+				}
+			}
+		}
+
+		// remove stale cached log files for instance id
+		o.RemoveStaleCachedAWSLogFiles(rdsInstance.InstanceID, logFileNames)
+	}
+}
+
+func (o *Observer) FindOrCreateCachedAWSLogFile(instanceID string, fileName string) *AWSLogFile {
+	for _, awsLogFile := range o.awsLogFiles {
+		if awsLogFile.InstanceID == instanceID && awsLogFile.LogFileName == fileName {
+			return awsLogFile
+		}
+	}
+
+	awsLogFile := &AWSLogFile{
+		InstanceID:  instanceID,
+		LogFileName: fileName,
+	}
+
+	o.awsLogFiles = append(o.awsLogFiles, awsLogFile)
+
+	return awsLogFile
+}
+
+func (o *Observer) RemoveStaleCachedAWSLogFiles(instanceID string, logFileNames []string) {
+	var keptLogFiles []*AWSLogFile
+
+	for _, existingLogFile := range o.awsLogFiles {
+		// keep all log files that are for another instance id
+		if existingLogFile.InstanceID != instanceID {
+			keptLogFiles = append(keptLogFiles, existingLogFile)
+			continue
+		}
+
+		// keep log file name matches that are still around
+		for _, logFileName := range logFileNames {
+			if existingLogFile.LogFileName == logFileName {
+				keptLogFiles = append(keptLogFiles, existingLogFile)
+				continue
+			}
+		}
+	}
+
+	o.awsLogFiles = keptLogFiles
 }

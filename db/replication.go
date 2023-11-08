@@ -49,9 +49,8 @@ type ReplicaClient struct {
 }
 
 type ReplicationMonitor struct {
-	replicationChannel chan *Replication
-	metricsChannel     chan []*Metric
-	postgresClients    []*PostgresClient
+	dataChannel     chan interface{}
+	postgresClients []*PostgresClient
 }
 
 func (m *ReplicationMonitor) Run(postgresClient *PostgresClient) {
@@ -65,7 +64,7 @@ func (m *ReplicationMonitor) Run(postgresClient *PostgresClient) {
 	}
 
 	select {
-	case m.replicationChannel <- replication:
+	case m.dataChannel <- replication:
 		// sent
 	default:
 		logger.Warn("Dropping replication: channel buffer full")
@@ -152,7 +151,7 @@ func (m *ReplicationMonitor) ReportReplicationLagMetrics(serverID *ServerID, rep
 
 	if len(replicationMetrics) > 0 {
 		select {
-		case m.metricsChannel <- replicationMetrics:
+		case m.dataChannel <- replicationMetrics:
 			// sent
 		default:
 			logger.Warn("Dropping replication metrics: channel buffer full")

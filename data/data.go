@@ -25,6 +25,29 @@ type Data struct {
 	mu                       sync.Mutex
 }
 
+func (d *Data) AddData(data interface{}) {
+	switch value := data.(type) {
+	case LogMetrics:
+		d.AddLogMetrics(value)
+	case []*db.Metric:
+		d.AddMetrics(value)
+	case *aws.RDSInstanceMetrics:
+		d.AddRDSMetrics(value)
+	case *db.PostgresServer:
+		d.AddPostgresServer(value)
+	case *db.Database:
+		d.AddDatabase(value)
+	case *db.Replication:
+		d.AddReplication(value)
+	case []*db.Setting:
+		d.AddSettings(value)
+	case []*db.QueryStats:
+		d.AddQueryStats(value)
+	case *errors.ErrorReport:
+		d.AddErrorReport(value)
+	}
+}
+
 func (d *Data) AddLogTestMessageReceivedAt(receivedAt int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

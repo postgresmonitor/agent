@@ -27,7 +27,7 @@ type Setting struct {
 }
 
 type SettingsMonitor struct {
-	settingsChannel chan []*Setting
+	dataChannel chan interface{}
 }
 
 func (o *Observer) MonitorSettings() {
@@ -36,7 +36,7 @@ func (o *Observer) MonitorSettings() {
 			o.config,
 			postgresClient,
 			&SettingsMonitor{
-				settingsChannel: o.settingsChannel,
+				dataChannel: o.dataChannel,
 			},
 		).Start()
 	}
@@ -46,7 +46,7 @@ func (m *SettingsMonitor) Run(postgresClient *PostgresClient) {
 	settings := m.FindSettings(postgresClient)
 
 	select {
-	case m.settingsChannel <- settings:
+	case m.dataChannel <- settings:
 		// sent
 	default:
 		logger.Warn("Dropping settings: channel buffer full")

@@ -2,7 +2,6 @@ package logs
 
 import (
 	"agent/config"
-	"agent/data"
 	"agent/db"
 	"agent/logger"
 	"agent/util"
@@ -15,17 +14,17 @@ import (
 // Server starts a gin based router for a Heroku postgres /logs endpoint
 type Server struct {
 	config              config.Config
-	logMetricChannel    chan data.LogMetrics
+	dataChannel         chan interface{}
 	logTestChannel      chan string
 	rawSlowQueryChannel chan *db.SlowQuery
 	router              *gin.Engine
 	stats               *util.Stats
 }
 
-func NewServer(config config.Config, logMetricChannel chan data.LogMetrics, logTestChannel chan string, rawSlowQueryChannel chan *db.SlowQuery, stats *util.Stats) *Server {
+func NewServer(config config.Config, dataChannel chan interface{}, logTestChannel chan string, rawSlowQueryChannel chan *db.SlowQuery, stats *util.Stats) *Server {
 	return &Server{
 		config:              config,
-		logMetricChannel:    logMetricChannel,
+		dataChannel:         dataChannel,
 		logTestChannel:      logTestChannel,
 		rawSlowQueryChannel: rawSlowQueryChannel,
 		stats:               stats,
@@ -106,7 +105,7 @@ func (s *Server) handleLogLine(line string) {
 			s.stats.Increment("logs.metric_lines")
 
 			select {
-			case s.logMetricChannel <- parsed.Metrics:
+			case s.dataChannel <- parsed.Metrics:
 				// sent
 			default:
 				s.stats.Increment("logs.metric_lines.dropped")

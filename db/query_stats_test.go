@@ -156,8 +156,8 @@ func TestAggregate(t *testing.T) {
 
 func TestFilterStatsMissingQuery(t *testing.T) {
 	monitor := QueryStatsMonitor{
-		queryStatsState:   nil,
-		queryStatsChannel: nil,
+		queryStatsState: nil,
+		dataChannel:     nil,
 	}
 
 	queryStats := []*QueryStats{
@@ -181,8 +181,8 @@ func TestFilterStatsMissingQuery(t *testing.T) {
 
 func TestRedact(t *testing.T) {
 	monitor := QueryStatsMonitor{
-		queryStatsState:   nil,
-		queryStatsChannel: nil,
+		queryStatsState: nil,
+		dataChannel:     nil,
 	}
 
 	assert.Equal(t, "SET application_name='sidekiq 1.2.3 app [8 of 16 busy] - REDACTED:60036'", monitor.Redact("SET application_name='sidekiq 1.2.3 app [8 of 16 busy] - 123.456.123.123:60036'"))
@@ -191,8 +191,8 @@ func TestRedact(t *testing.T) {
 
 func TestMonitorAggregateNoDupes(t *testing.T) {
 	monitor := QueryStatsMonitor{
-		queryStatsState:   nil,
-		queryStatsChannel: nil,
+		queryStatsState: nil,
+		dataChannel:     nil,
 	}
 
 	queryStats := []*QueryStats{
@@ -215,8 +215,8 @@ func TestMonitorAggregateNoDupes(t *testing.T) {
 
 func TestMonitorAggregate(t *testing.T) {
 	monitor := QueryStatsMonitor{
-		queryStatsState:   nil,
-		queryStatsChannel: nil,
+		queryStatsState: nil,
+		dataChannel:     nil,
 	}
 
 	queryStats := []*QueryStats{

@@ -28,6 +28,7 @@ type Config struct {
 	LogLevel        string
 	LogPostgresLogs bool
 
+	MonitorAWSLogsInterval           time.Duration
 	MonitorCloudwatchMetricsInterval time.Duration
 	MonitorCloudwatchLogsInterval    time.Duration
 	MonitorInterval                  time.Duration
@@ -36,6 +37,7 @@ type Config struct {
 	MonitorQueryStatsInterval        time.Duration
 
 	MonitorAgentQueries      bool
+	MonitorAWSLogs           bool
 	MonitorCloudwatchMetrics bool
 	MonitorPgBouncer         bool
 	MonitorQueryStats        bool
@@ -66,6 +68,7 @@ func New() Config {
 	logLevel := getEnvVar("LOG_LEVEL", "info")
 	logPostgresLogs := getEnvVarBool("LOG_POSTGRES_LOGS", false)
 	monitorAgentQueries := getEnvVarBool("MONITOR_AGENT_QUERIES", false)
+	monitorAWSLogs := getEnvVarBool("MONITOR_AWS_LOGS", true)
 	monitorCloudwatchMetrics := getEnvVarBool("MONITOR_CLOUDWATCH_METRICS", true)
 	monitorPgBouncer := getEnvVarBool("MONITOR_PGBOUNCER", true)
 	monitorQueryStats := getEnvVarBool("MONITOR_QUERY_STATS", true)
@@ -84,6 +87,7 @@ func New() Config {
 		Version:                          version,
 		LogLevel:                         logLevel,
 		LogPostgresLogs:                  logPostgresLogs,
+		MonitorAWSLogsInterval:           2 * time.Minute,
 		MonitorCloudwatchMetricsInterval: 5 * time.Minute,
 		MonitorCloudwatchLogsInterval:    1 * time.Minute,
 		MonitorInterval:                  30 * time.Second, // if data is sent more frequently, the api will drop the data
@@ -91,6 +95,7 @@ func New() Config {
 		MonitorSchemaInterval:            15 * time.Minute, // ^
 		MonitorSettingsInterval:          3 * time.Hour,    // ^
 		MonitorAgentQueries:              monitorAgentQueries,
+		MonitorAWSLogs:                   monitorAWSLogs,
 		MonitorCloudwatchMetrics:         monitorCloudwatchMetrics,
 		MonitorPgBouncer:                 monitorPgBouncer,
 		MonitorQueryStats:                monitorQueryStats,

@@ -25,17 +25,10 @@ type Agent struct {
 	data                    *data.Data
 	requests                *deque.Deque[*api.ReportRequest]
 	startLogsServerChannel  chan bool
-	logMetricChannel        chan data.LogMetrics
 	logTestChannel          chan string
-	serverChannel           chan *db.PostgresServer
-	databaseChannel         chan *db.Database
-	replicationChannel      chan *db.Replication
-	metricsChannel          chan []*db.Metric
-	queryStatsChannel       chan []*db.QueryStats
-	settingsChannel         chan []*db.Setting
+	dataChannel             chan interface{}
 	rawSlowQueryChannel     chan *db.SlowQuery
-	awsInstanceFoundChannel chan *aws.RDSInstanceFoundEvent
-	awsRDSMetricsChannel    chan *aws.RDSInstanceMetrics
+	awsInstanceFoundChannel chan *db.RDSInstanceFoundEvent
 	stats                   *util.Stats
 }
 
@@ -45,17 +38,10 @@ func New(config config.Config) *Agent {
 		data:                    &data.Data{},
 		requests:                deque.New[*api.ReportRequest](maxBufferedRequests, maxBufferedRequests),
 		startLogsServerChannel:  make(chan bool, 1),
-		logMetricChannel:        make(chan data.LogMetrics, 50),
+		dataChannel:             make(chan interface{}, 100),
 		logTestChannel:          make(chan string, 10),
-		serverChannel:           make(chan *db.PostgresServer, 25),
-		databaseChannel:         make(chan *db.Database, 25),
-		replicationChannel:      make(chan *db.Replication, 25),
-		metricsChannel:          make(chan []*db.Metric, 25),
-		queryStatsChannel:       make(chan []*db.QueryStats, 25),
-		settingsChannel:         make(chan []*db.Setting, 25),
 		rawSlowQueryChannel:     make(chan *db.SlowQuery, 100),
-		awsInstanceFoundChannel: make(chan *aws.RDSInstanceFoundEvent, 10),
-		awsRDSMetricsChannel:    make(chan *aws.RDSInstanceMetrics, 10),
+		awsInstanceFoundChannel: make(chan *db.RDSInstanceFoundEvent, 10),
 		stats:                   &util.Stats{},
 	}
 }
@@ -71,7 +57,7 @@ func (a *Agent) Run() {
 	go schedule.Schedule(a.sendRequest, 60*time.Second, delayJitter)
 
 	if a.config.MonitorCloudwatchMetrics {
-		go a.newCloudwatchObserver().Run()
+		go a.newAWSObserver().Run()
 	}
 
 	// doesn't return and runs in main thread
@@ -86,7 +72,7 @@ func (a *Agent) Test() {
 	go a.updateDataChannels()
 
 	// bootstrap pgbouncer, server metadata and schemas
-	a.newObserver().BootstrapMetatdataAndSchemas()
+	a.newPostgresObserver().BootstrapMetatdataAndSchemas()
 
 	// wait a few seconds for bootstrapped data to be sent to the data channels
 	logger.Info("Waiting 5 seconds to send initial request...")
@@ -100,26 +86,26 @@ func (a *Agent) TestLogs() {
 	logger.Info("Testing database logs are setup correctly")
 
 	logger.Info("Writing log test message")
-	a.newObserver().WriteLogTestMessage()
+	a.newPostgresObserver().WriteLogTestMessage()
 
 	logger.Info("Successfully wrote log test message!")
 }
 
 func (a *Agent) startServer() {
-	logsServer := logs.NewServer(a.config, a.logMetricChannel, a.logTestChannel, a.rawSlowQueryChannel, a.stats)
+	logsServer := logs.NewServer(a.config, a.dataChannel, a.logTestChannel, a.rawSlowQueryChannel, a.stats)
 	logsServer.Start() // doesn't return
 }
 
 func (a *Agent) startPostgresObserver() {
-	a.newObserver().Start()
+	a.newPostgresObserver().Start()
 }
 
-func (a *Agent) newObserver() *db.Observer {
-	return db.NewObserver(a.config, a.startLogsServerChannel, a.serverChannel, a.databaseChannel, a.replicationChannel, a.metricsChannel, a.queryStatsChannel, a.settingsChannel, a.rawSlowQueryChannel, a.awsInstanceFoundChannel)
+func (a *Agent) newPostgresObserver() *db.Observer {
+	return db.NewObserver(a.config, a.dataChannel, a.startLogsServerChannel, a.rawSlowQueryChannel, a.awsInstanceFoundChannel)
 }
 
-func (a *Agent) newCloudwatchObserver() *aws.CloudwatchObserver {
-	return aws.NewCloudwatchObserver(a.config, a.awsInstanceFoundChannel, a.awsRDSMetricsChannel)
+func (a *Agent) newAWSObserver() *aws.Observer {
+	return aws.NewObserver(a.config, a.awsInstanceFoundChannel, a.dataChannel, a.rawSlowQueryChannel)
 }
 
 // runs forever
@@ -134,30 +120,17 @@ func (a *Agent) updateDataChannels() {
 			if startLogsServer {
 				go a.startServer()
 			}
-		case logMetrics := <-a.logMetricChannel:
-			a.data.AddLogMetrics(logMetrics)
+		case data := <-a.dataChannel:
+			// general channel for multiple kinds of data
+			a.data.AddData(data)
 		case <-a.logTestChannel:
 			// log test messages are only sent when a --test-logs flag run occurs
 			// send an immediate request up with the log test messsage timestamp set
 			logger.Info("Log test message was received")
 			a.data.AddLogTestMessageReceivedAt(time.Now().Unix())
 			go a.sendRequest()
-		case postgresServer := <-a.serverChannel:
-			a.data.AddPostgresServer(postgresServer)
-		case database := <-a.databaseChannel:
-			a.data.AddDatabase(database)
-		case replication := <-a.replicationChannel:
-			a.data.AddReplication(replication)
-		case metrics := <-a.metricsChannel:
-			a.data.AddMetrics(metrics)
-		case settings := <-a.settingsChannel:
-			a.data.AddSettings(settings)
-		case stats := <-a.queryStatsChannel:
-			a.data.AddQueryStats(stats)
 		case err := <-errors.ErrorsChannel:
 			a.data.AddErrorReport(err)
-		case metrics := <-a.awsRDSMetricsChannel:
-			a.data.AddRDSMetrics(metrics)
 		}
 	}
 }

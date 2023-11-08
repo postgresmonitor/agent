@@ -130,7 +130,7 @@ func (s *QueryStats) Valid() bool {
 type QueryStatsMonitor struct {
 	// stateful stats for the life of the process
 	queryStatsState     *QueryStatsState
-	queryStatsChannel   chan []*QueryStats
+	dataChannel         chan interface{}
 	obfuscator          *Obfuscator
 	monitorAgentQueries bool
 }
@@ -198,7 +198,7 @@ func (m *QueryStatsMonitor) Run(postgresClient *PostgresClient) {
 
 	// report aggregated stats to channel
 	select {
-	case m.queryStatsChannel <- filtered:
+	case m.dataChannel <- filtered:
 		// sent
 	default:
 		logger.Warn("Dropping query stats: channel buffer full")

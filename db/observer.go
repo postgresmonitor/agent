@@ -1,7 +1,6 @@
 package db
 
 import (
-	"agent/aws"
 	"agent/config"
 	"agent/errors"
 	"agent/logger"
@@ -12,12 +11,7 @@ import (
 type Observer struct {
 	config                 config.Config
 	startLogsServerChannel chan bool
-	serverChannel          chan *PostgresServer
-	schemaChannel          chan *Database
-	settingsChannel        chan []*Setting
-	metricsChannel         chan []*Metric
-	queryStatsChannel      chan []*QueryStats
-	replicationChannel     chan *Replication
+	dataChannel            chan interface{}
 	rawSlowQueryChannel    chan *SlowQuery
 
 	// stateful stats for the life of the observer
@@ -55,8 +49,13 @@ type PostgresServer struct {
 	MonitoredAt    int64
 }
 
+type RDSInstanceFoundEvent struct {
+	InstanceID string
+	IsAurora   bool
+}
+
 // Creates a new DB observer using the present config env vars
-func NewObserver(config config.Config, startLogsServerChannel chan bool, serverChannel chan *PostgresServer, schemaChannel chan *Database, replicationChannel chan *Replication, metricsChannel chan []*Metric, queryStatsChannel chan []*QueryStats, settingsChannel chan []*Setting, rawSlowQueryChannel chan *SlowQuery, awsInstanceDiscoveredChannel chan *aws.RDSInstanceFoundEvent) *Observer {
+func NewObserver(config config.Config, dataChannel chan interface{}, startLogsServerChannel chan bool, rawSlowQueryChannel chan *SlowQuery, awsInstanceDiscoveredChannel chan *RDSInstanceFoundEvent) *Observer {
 	postgresClients := BuildPostgresClients(config)
 
 	if len(postgresClients) == 0 {
@@ -67,7 +66,7 @@ func NewObserver(config config.Config, startLogsServerChannel chan bool, serverC
 
 			// notify cloudwatch observer
 			if config.MonitorCloudwatchMetrics && (client.isAuroraPlatform || client.isRDSPlatform) {
-				awsInstanceDiscoveredChannel <- &aws.RDSInstanceFoundEvent{
+				awsInstanceDiscoveredChannel <- &RDSInstanceFoundEvent{
 					InstanceID: client.serverID.Name,
 					IsAurora:   client.isAuroraPlatform,
 				}
@@ -77,13 +76,8 @@ func NewObserver(config config.Config, startLogsServerChannel chan bool, serverC
 
 	return &Observer{
 		config:                 config,
+		dataChannel:            dataChannel,
 		startLogsServerChannel: startLogsServerChannel,
-		serverChannel:          serverChannel,
-		schemaChannel:          schemaChannel,
-		settingsChannel:        settingsChannel,
-		replicationChannel:     replicationChannel,
-		queryStatsChannel:      queryStatsChannel,
-		metricsChannel:         metricsChannel,
 		rawSlowQueryChannel:    rawSlowQueryChannel,
 		databaseSchemaState:    &DatabaseSchemaState{},
 		databaseStatsState:     &DatabaseStatsState{},
@@ -148,7 +142,7 @@ func (o *Observer) BootstrapMetatdataAndSchemas() {
 				postgresClient,
 				&PgBouncerMonitor{
 					pgBouncerStatsState: o.pgBouncerStatsState,
-					metricsChannel:      o.metricsChannel,
+					dataChannel:         o.dataChannel,
 				},
 			).Start()
 		}
@@ -158,7 +152,7 @@ func (o *Observer) BootstrapMetatdataAndSchemas() {
 			o.config,
 			postgresClient,
 			&MetadataMonitor{
-				serverChannel: o.serverChannel,
+				dataChannel: o.dataChannel,
 			},
 		).Start()
 
@@ -175,7 +169,7 @@ func (o *Observer) BootstrapMetatdataAndSchemas() {
 				o.config,
 				postgresClient,
 				&SchemaMonitor{
-					schemaChannel:       o.schemaChannel,
+					dataChannel:         o.dataChannel,
 					databaseSchemaState: o.databaseSchemaState,
 				},
 			).Start()
@@ -189,7 +183,7 @@ func (o *Observer) Monitor() {
 			o.config,
 			postgresClient,
 			&MetadataMonitor{
-				serverChannel: o.serverChannel,
+				dataChannel: o.dataChannel,
 			},
 		).Start()
 
@@ -199,7 +193,7 @@ func (o *Observer) Monitor() {
 				postgresClient,
 				&PgBouncerMonitor{
 					pgBouncerStatsState: o.pgBouncerStatsState,
-					metricsChannel:      o.metricsChannel,
+					dataChannel:         o.dataChannel,
 				},
 			).Start()
 		}
@@ -209,9 +203,8 @@ func (o *Observer) Monitor() {
 				o.config,
 				postgresClient,
 				&ReplicationMonitor{
-					replicationChannel: o.replicationChannel,
-					metricsChannel:     o.metricsChannel,
-					postgresClients:    o.postgresClients,
+					dataChannel:     o.dataChannel,
+					postgresClients: o.postgresClients,
 				},
 			).Start()
 		}
@@ -220,7 +213,7 @@ func (o *Observer) Monitor() {
 			o.config,
 			postgresClient,
 			&MetricMonitor{
-				metricsChannel:     o.metricsChannel,
+				dataChannel:        o.dataChannel,
 				databaseStatsState: o.databaseStatsState,
 			},
 		).Start()
@@ -234,7 +227,7 @@ func (o *Observer) MonitorQueryStats() {
 			postgresClient,
 			&QueryStatsMonitor{
 				queryStatsState:     o.queryStatsState,
-				queryStatsChannel:   o.queryStatsChannel,
+				dataChannel:         o.dataChannel,
 				obfuscator:          o.obfuscator,
 				monitorAgentQueries: o.config.MonitorAgentQueries,
 			},
